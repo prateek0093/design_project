@@ -2,6 +2,8 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import Home from "./Home.jsx";
 import { createBrowserRouter, RouterProvider, Outlet } from "react-router-dom";
+import "./index.css";
+import LeetCodeLogin from "./authorLogin.jsx";
 const App = () => {
   return (
     <div className="app">
@@ -17,6 +19,10 @@ const appRouter = createBrowserRouter([
       {
         path: "",
         element: <Home />,
+      },
+      {
+        path: "/authorLogin",
+        element: <LeetCodeLogin />,
       },
     ],
   },
