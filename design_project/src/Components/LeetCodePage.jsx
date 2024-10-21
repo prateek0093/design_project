@@ -86,10 +86,8 @@ const LeetCodePage = () => {
       if (response.data.success) {
         console.log("OTP verified successfully:", response.data);
         setIsOTPDialogOpen(false);
-        // Redirect to login page after successful OTP verification
         navigate("/login");
       } else {
-        // Handle error case if OTP verification fails
         setOtpError("Invalid OTP. Please try again.");
       }
     } catch (error) {
@@ -100,7 +98,6 @@ const LeetCodePage = () => {
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-purple-50 to-white max-w-[1920px] mx-auto overflow-hidden">
-      {/* Header */}
       <header className="flex justify-between items-center px-16 py-3 bg-white shadow-md h-[10vh]">
         <h1 className="text-2xl font-bold">
           <span className="text-purple-600">Leet</span>
@@ -134,9 +131,7 @@ const LeetCodePage = () => {
         </nav>
       </header>
 
-      {/* Main Content */}
       <div className="flex h-[90vh]">
-        {/* Left Side */}
         <div className="w-3/5 flex justify-center items-center p-6">
           <div className="max-w-[500px] w-full">
             <img
@@ -147,10 +142,8 @@ const LeetCodePage = () => {
           </div>
         </div>
 
-        {/* Right Side */}
         <div className="w-2/5 flex justify-center items-center p-6">
           <div className="bg-white p-8 rounded-3xl shadow-lg w-full max-w-[400px] max-h-[80vh] overflow-y-auto">
-            {/* Form Header */}
             <div className="flex items-center justify-center gap-3 mb-6">
               <img src={image} alt="LeetCode logo" className="w-7 h-7" />
               <h2 className="text-2xl font-bold">
@@ -159,7 +152,6 @@ const LeetCodePage = () => {
               </h2>
             </div>
 
-            {/* Registration Form */}
             <form onSubmit={handleRegister}>
               <div className="mb-4">
                 <input
@@ -233,11 +225,10 @@ const LeetCodePage = () => {
         </div>
       </div>
 
-      {/* OTP Dialog */}
       <OTPDialog
         isOpen={isOTPDialogOpen}
         onClose={() => {
-          setOtpError(""); // Clear OTP error when dialog closes
+          setOtpError("");
           setIsOTPDialogOpen(false);
         }}
         onSubmit={handleOTPSubmit}

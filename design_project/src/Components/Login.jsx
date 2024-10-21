@@ -1,38 +1,32 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom"; // Import useNavigate for redirection
-import axios from "axios"; // Import axios
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import aadmi from "/aadmi.png";
 
 const LeetCodeLogin = () => {
-  const navigate = useNavigate(); // Hook for navigation
-  const [formData, setFormData] = useState({ email: "", password: "" }); // State for form data
-  const [error, setError] = useState({ email: "", password: "", general: "" }); // State for error messages
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [error, setError] = useState({ email: "", password: "", general: "" });
 
-  // Regex patterns
   const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
   const passwordPattern = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{8,}$/;
 
-  // Function to handle input change
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
 
-    // Clear specific error when the user starts typing
     setError((prev) => ({ ...prev, [name]: "", general: "" }));
   };
 
-  // Function to validate form inputs
   const validateForm = () => {
     let isValid = true;
     const newErrors = { email: "", password: "" };
 
-    // Validate email
     if (!emailPattern.test(formData.email)) {
       newErrors.email = "Please enter a valid email address.";
       isValid = false;
     }
 
-    // Validate password
     if (!passwordPattern.test(formData.password)) {
       newErrors.password =
         "Password must be at least 8 characters, with one letter and one number.";
@@ -43,13 +37,11 @@ const LeetCodeLogin = () => {
     return isValid;
   };
 
-  // Function to handle form submission
   const handleLogin = async (e) => {
     e.preventDefault();
 
     if (validateForm()) {
       try {
-        // Make a POST request to the login API
         const response = await axios.post(
           "http://localhost:8080/login",
           formData
@@ -57,10 +49,9 @@ const LeetCodeLogin = () => {
 
         if (response.data.success) {
           console.log("Login successful", response.data);
-          // Redirect to the landing page after successful login
+
           navigate("/landingpage");
         } else {
-          // Handle login error if credentials are incorrect
           setError((prev) => ({
             ...prev,
             general: "Invalid email or password. Please try again.",
@@ -117,12 +108,10 @@ const LeetCodeLogin = () => {
               </span>
             </div>
 
-            {/* General Error Message */}
             {error.general && (
               <p className="mb-4 text-red-500 text-center">{error.general}</p>
             )}
 
-            {/* Login Form */}
             <form onSubmit={handleLogin}>
               <div className="mb-4">
                 <input

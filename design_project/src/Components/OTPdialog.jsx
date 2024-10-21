@@ -1,14 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { X } from 'lucide-react';
+import React, { useState, useRef, useEffect } from "react";
+import { X } from "lucide-react";
 
 const OTPDialog = ({ isOpen, onClose }) => {
-  const [otp, setOtp] = useState(Array(6).fill(''));
+  const [otp, setOtp] = useState(Array(6).fill(""));
   const inputRefs = useRef([]);
 
   useEffect(() => {
-    // Reset OTP when dialog closes
     if (!isOpen) {
-      setOtp(Array(6).fill(''));
+      setOtp(Array(6).fill(""));
     }
   }, [isOpen]);
 
@@ -19,23 +18,26 @@ const OTPDialog = ({ isOpen, onClose }) => {
     newOtp[index] = element.value;
     setOtp(newOtp);
 
-    // Move to next input if value is entered
-    if (element.value !== '' && index < 5 && inputRefs.current[index + 1]) {
+    if (element.value !== "" && index < 5 && inputRefs.current[index + 1]) {
       inputRefs.current[index + 1].focus();
     }
   };
 
   const handleKeyDown = (e, index) => {
-    // Handle backspace
-    if (e.key === 'Backspace' && !otp[index] && index > 0 && inputRefs.current[index - 1]) {
+    if (
+      e.key === "Backspace" &&
+      !otp[index] &&
+      index > 0 &&
+      inputRefs.current[index - 1]
+    ) {
       inputRefs.current[index - 1].focus();
     }
   };
 
   const handlePaste = (e) => {
     e.preventDefault();
-    const pastedData = e.clipboardData.getData('text').slice(0, 6).split('');
-    
+    const pastedData = e.clipboardData.getData("text").slice(0, 6).split("");
+
     if (pastedData) {
       const updatedOtp = [...otp];
       pastedData.forEach((value, index) => {
@@ -47,10 +49,13 @@ const OTPDialog = ({ isOpen, onClose }) => {
         }
       });
       setOtp(updatedOtp);
-      
-      // Focus the next empty input after paste
-      const nextEmptyIndex = updatedOtp.findIndex(val => val === '');
-      if (nextEmptyIndex !== -1 && nextEmptyIndex < 6 && inputRefs.current[nextEmptyIndex]) {
+
+      const nextEmptyIndex = updatedOtp.findIndex((val) => val === "");
+      if (
+        nextEmptyIndex !== -1 &&
+        nextEmptyIndex < 6 &&
+        inputRefs.current[nextEmptyIndex]
+      ) {
         inputRefs.current[nextEmptyIndex].focus();
       }
     }
@@ -58,15 +63,17 @@ const OTPDialog = ({ isOpen, onClose }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const otpValue = otp.join('');
-    console.log('OTP submitted:', otpValue);
+    const otpValue = otp.join("");
+    console.log("OTP submitted:", otpValue);
     onClose();
   };
 
   return (
-    <div 
+    <div
       className={`fixed inset-0 bg-black/50 flex items-center justify-center transition-opacity duration-300 ${
-        isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        isOpen
+          ? "opacity-100 pointer-events-auto"
+          : "opacity-0 pointer-events-none"
       }`}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -74,8 +81,10 @@ const OTPDialog = ({ isOpen, onClose }) => {
     >
       <div className="bg-white p-6 w-full max-w-md rounded-2xl shadow-2xl relative mx-4">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold text-center w-full">Enter OTP</h2>
-          <button 
+          <h2 className="text-2xl font-semibold text-center w-full">
+            Enter OTP
+          </h2>
+          <button
             onClick={onClose}
             className="absolute right-6 top-6 text-gray-400 hover:text-gray-600 transition-colors"
           >
@@ -88,7 +97,7 @@ const OTPDialog = ({ isOpen, onClose }) => {
             {otp.map((data, index) => (
               <input
                 key={index}
-                ref={(ref) => inputRefs.current[index] = ref}
+                ref={(ref) => (inputRefs.current[index] = ref)}
                 type="text"
                 maxLength={1}
                 value={data}
@@ -108,7 +117,7 @@ const OTPDialog = ({ isOpen, onClose }) => {
             Enter the 6-digit code sent to your email
           </p>
 
-          <button 
+          <button
             type="submit"
             className="w-full py-3 bg-purple-600 text-white rounded-lg text-lg font-semibold
                      hover:bg-purple-700 transition-colors duration-200
