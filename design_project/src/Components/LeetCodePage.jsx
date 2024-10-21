@@ -78,11 +78,11 @@ const LeetCodePage = () => {
       const response = await axios.post(
         "http://localhost:8080/otpVerification",
         {
-          otp: otpValue,
+          otp: parseInt(otpValue),
           email: formData.email,
         }
       );
-
+      console.log(response);
       if (response.data.success) {
         console.log("OTP verified successfully:", response.data);
         setIsOTPDialogOpen(false);
@@ -95,7 +95,6 @@ const LeetCodePage = () => {
       setOtpError("Error verifying OTP. Please try again.");
     }
   };
-
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-purple-50 to-white max-w-[1920px] mx-auto overflow-hidden">
       <header className="flex justify-between items-center px-16 py-3 bg-white shadow-md h-[10vh]">

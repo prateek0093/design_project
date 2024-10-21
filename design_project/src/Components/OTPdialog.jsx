@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { X } from "lucide-react";
 
-const OTPDialog = ({ isOpen, onClose }) => {
+const OTPDialog = ({ isOpen, onClose ,onSubmit}) => {
   const [otp, setOtp] = useState(Array(6).fill(""));
   const inputRefs = useRef([]);
 
@@ -64,6 +64,7 @@ const OTPDialog = ({ isOpen, onClose }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     const otpValue = otp.join("");
+    onSubmit(otpValue);
     console.log("OTP submitted:", otpValue);
     onClose();
   };
