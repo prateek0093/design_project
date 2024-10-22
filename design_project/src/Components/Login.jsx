@@ -49,8 +49,8 @@ const LeetCodeLogin = () => {
 
         if (response.data.success) {
           console.log("Login successful", response.data);
-
-          navigate("/landingpage");
+          const username = response.data.username;
+          navigate("/landingpage", { state: { username: username } });
         } else {
           setError((prev) => ({
             ...prev,
