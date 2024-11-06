@@ -4,7 +4,7 @@ import OTPDialog from "./OTPdialog";
 import image from "/image.png";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-const LeetCodePage = () => {
+const SignUp = () => {
   const [formData, setFormData] = useState({
     email: "",
     username: "",
@@ -237,4 +237,4 @@ const LeetCodePage = () => {
   );
 };
 
-export default LeetCodePage;
+export default SignUp;

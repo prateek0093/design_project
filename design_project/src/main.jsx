@@ -4,7 +4,7 @@ import Home from "./Components/Home.jsx";
 import { createBrowserRouter, RouterProvider, Outlet } from "react-router-dom";
 import "./index.css";
 import LeetCodeLogin from "./Components/Login.jsx";
-import LeetCodePage from "./Components/LeetCodePage.jsx";
+import LeetCodePage from "./Components/SignUp.jsx";
 import Dashboard from "./Components/Dashboard2.jsx";
 import CoursePage from "./Components/CoursePage.jsx";
 const App = () => {
