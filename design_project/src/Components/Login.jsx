@@ -1,10 +1,14 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import axios, { HttpStatusCode } from "axios";
 import aadmi from "/aadmi.png";
+import { useCookies } from "react-cookie";
 
 const LeetCodeLogin = () => {
   const navigate = useNavigate();
+  const [cookie, setCookie] = useCookies("accessToken", {
+    doNotParse: true,
+  });
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [error, setError] = useState({ email: "", password: "", general: "" });
 
@@ -43,13 +47,21 @@ const LeetCodeLogin = () => {
     if (validateForm()) {
       try {
         const response = await axios.post(
-          "http://localhost:8080/login",
-          formData
+          import.meta.env.VITE_BE_URL + "/login",
+          formData,
+          {
+            withCredentials: true,
+          }
         );
 
         if (response.data.success) {
           console.log("Login successful", response.data);
           const username = response.data.username;
+          setCookie("accessToken", response.data.tokenString, {
+            secure: false,
+            sameSite: "none",
+          });
+
           navigate("/landingpage", { state: { username: username } });
         } else {
           setError((prev) => ({

@@ -57,7 +57,7 @@ const LeetCodePage = () => {
     if (validateForm()) {
       try {
         const response = await axios.post(
-          "http://localhost:8080/signUp",
+          import.meta.env.VITE_BE_URL + "/signUp",
           formData
         );
         console.log("Registration successful:", response.data);
@@ -76,7 +76,7 @@ const LeetCodePage = () => {
   const handleOTPSubmit = async (otpValue) => {
     try {
       const response = await axios.post(
-        "http://localhost:8080/otpVerification",
+        import.meta.env.VITE_BE_URL + "/otpVerification",
         {
           otp: parseInt(otpValue),
           email: formData.email,
