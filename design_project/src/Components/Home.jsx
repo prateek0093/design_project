@@ -1,6 +1,8 @@
 import React from "react";
+import {Link, useNavigate} from "react-router-dom";
 import aadmi from "/aadmi.png";
 const Home = () => {
+  const navigate = useNavigate();
   return (
     <div className="bg-gradient-to-br from-purple-100 to-purple-200 min-h-screen font-sans">
       <div className="container mx-auto px-4 py-8">
@@ -24,7 +26,7 @@ const Home = () => {
                 </a>
               </li>
               <li>
-                <button className="bg-purple-500 text-white px-4 py-2 rounded-full hover:bg-purple-600 transition">
+                <button onClick={()=>navigate("/signup")} className="bg-purple-500 text-white px-4 py-2 rounded-full hover:bg-purple-600 transition">
                   Student
                 </button>
               </li>

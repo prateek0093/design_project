@@ -216,9 +216,9 @@ const SignUp = () => {
             </form>
 
             <div className="flex justify-between items-center text-xs my-6">
-              <a href="#" className="text-purple-600 font-semibold">
+              <p onClick={()=>navigate("/login")} className="text-purple-600 font-semibold">
                 Log In
-              </a>
+              </p>
             </div>
           </div>
         </div>

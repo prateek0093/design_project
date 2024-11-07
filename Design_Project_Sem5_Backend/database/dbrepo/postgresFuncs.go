@@ -2,6 +2,7 @@ package dbrepo
 
 import (
 	"DesignProjectBackend/models/RecievedData"
+	"DesignProjectBackend/models/SentData"
 	"context"
 	"database/sql"
 	"errors"
@@ -13,7 +14,7 @@ import (
 func (m *PostgresRepo) SignUpUser(user RecievedData.User) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	query := `INSERT INTO users(username, email, password,role,verified) VALUES ($1, $2, $3,$4,$5)`
+	query := `INSERT INTO users(username, email, password_hash,role,verified) VALUES ($1, $2, $3,$4,$5)`
 	hashedPass, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
 		fmt.Println("Error hashing password", err)
@@ -89,7 +90,7 @@ func (m *PostgresRepo) Login(email, password string) (string, bool, error) {
 
 	var userName, pass string
 	var verification bool
-	query := `SELECT username, password, verified FROM users WHERE email = $1`
+	query := `SELECT username, password_hash, verified FROM users WHERE email = $1`
 
 	// Use QueryRowContext for a single row result
 	row := m.DB.QueryRowContext(ctx, query, email)
@@ -111,4 +112,115 @@ func (m *PostgresRepo) Login(email, password string) (string, bool, error) {
 	}
 
 	return userName, verification, nil
+}
+
+func (m *PostgresRepo) GetRoleFromUserName(name string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	var role string
+	query := `SELECT role FROM users WHERE username=$1`
+	row := m.DB.QueryRowContext(ctx, query, name)
+	err := row.Scan(&role)
+	if err != nil {
+		return "", err
+	}
+	return role, nil
+}
+
+func (m *PostgresRepo) GetAllCoursesForStudent(name string) ([]SentData.CourseData, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	var data []SentData.CourseData
+	defer cancel()
+	query := `SELECT 
+			c.course_name,
+			c.course_code,
+			e.course_id,
+			u.username AS author_name
+		FROM 
+			users AS s
+		JOIN 
+			enrollments AS e ON s.user_id = e.student_id
+		JOIN 
+			courses AS c ON e.course_id = c.course_id
+		JOIN 
+			users AS u ON c.author_id = u.user_id
+		WHERE 
+			s.username = $1;
+		`
+	rows, err := m.DB.QueryContext(ctx, query, name)
+	if errors.Is(err, sql.ErrNoRows) {
+		fmt.Println("No courses enrolled by student")
+		err = errors.New("no courses enrolled by student")
+		return []SentData.CourseData{}, err
+	} else if err != nil {
+		fmt.Println("Error getting all courses:", err)
+		return []SentData.CourseData{}, err
+	}
+	for rows.Next() {
+		var courseData SentData.CourseData
+		err = rows.Scan(&courseData.CourseName, &courseData.CourseCode, &courseData.CourseId, &courseData.AuthorName)
+		if err != nil {
+			fmt.Println("Error scanning courses:", err)
+			return []SentData.CourseData{}, err
+		}
+		data = append(data, courseData)
+	}
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			fmt.Println("Error closing rows:", err)
+			return
+		}
+	}(rows)
+	return data, nil
+}
+func (m *PostgresRepo) Get3RecentAssignments(name string) ([]SentData.AssignmentData, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	var data []SentData.AssignmentData
+	defer cancel()
+	query := `SELECT 
+		c.course_id,
+		c.course_name,
+		a.assignment_name,
+		a.start_time AS assignment_start_time
+	FROM 
+		users AS u
+	JOIN 
+		enrollments AS e ON u.user_id = e.student_id
+	JOIN 
+		courses AS c ON e.course_id = c.course_id
+	JOIN 
+		assignments AS a ON c.course_id = a.course_id
+	WHERE 
+		u.username = $1
+	ORDER BY 
+		a.start_time DESC
+	LIMIT 3;
+	`
+	rows, err := m.DB.QueryContext(ctx, query, name)
+	if errors.Is(err, sql.ErrNoRows) {
+		fmt.Println("No tasks Assigned")
+		err = errors.New("no tasks Assigned")
+		return []SentData.AssignmentData{}, err
+	} else if err != nil {
+		fmt.Println("Error getting recent Assignments:", err)
+		return []SentData.AssignmentData{}, err
+	}
+	for rows.Next() {
+		var assignmentData SentData.AssignmentData
+		err = rows.Scan(&assignmentData.CourseId, &assignmentData.CourseName, &assignmentData.AssignmentName, &assignmentData.StartTime)
+		if err != nil {
+			fmt.Println("Error scanning assignments:", err)
+			return []SentData.AssignmentData{}, err
+		}
+		data = append(data, assignmentData)
+	}
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			fmt.Println("Error closing rows:", err)
+			return
+		}
+	}(rows)
+	return data, nil
 }

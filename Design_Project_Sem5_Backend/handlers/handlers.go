@@ -9,12 +9,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/joho/godotenv"
 	"math/big"
 	"net/http"
 	"net/smtp"
 	"os"
 	"strconv"
+	"time"
 )
 
 var Repo *Repository
@@ -33,12 +35,23 @@ func NewHandler(r *Repository) {
 	Repo = r
 }
 
+type Claims struct {
+	Username string `json:"username"`
+	Role     string `json:"role"`
+	jwt.RegisteredClaims
+}
+
 func (m *Repository) Login(w http.ResponseWriter, r *http.Request) {
+	if err := godotenv.Load(); err != nil {
+		fmt.Println("Error loading environment variables:", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 	var user RecievedData.User
 	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {
-		http.Error(w, "Error parsing signup data", http.StatusBadRequest)
-		fmt.Println("Error parsing signup data:", err)
+		http.Error(w, "Error parsing login data", http.StatusBadRequest)
+		fmt.Println("Error parsing login data:", err)
 		return
 	}
 	fmt.Println(user)
@@ -65,10 +78,38 @@ func (m *Repository) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "User not verified", http.StatusUnauthorized)
 		return
 	}
-
+	role, err := m.DB.GetRoleFromUserName(username)
+	claims := &Claims{
+		Username: username,
+		Role:     role,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+		},
+	}
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5174") // Replace with your frontend URL
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Content-Type", "application/json")
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_KEY")))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode("Error generating token")
+		fmt.Println("Error in signing token", err)
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     "accessToken",
+		Value:    tokenString,
+		Path:     "/",
+		Expires:  time.Now().Add(24 * time.Hour),
+		HttpOnly: false,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
+	})
 	// Successful login
 	response["success"] = true
 	response["username"] = username
+	response["tokenString"] = tokenString
 	w.WriteHeader(http.StatusOK)
 	err = json.NewEncoder(w).Encode(response)
 	if err != nil {
@@ -114,16 +155,16 @@ func (m *Repository) SignUp(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Error sending email", err)
 		return
 	}
-	err = m.DB.InsertOtp(otp, user.Email)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Println("Error inserting otp to db", err)
-		return
-	}
 	err = m.DB.SignUpUser(user)
 	if err != nil {
 		fmt.Println("Error adding user to db", err)
 		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	err = m.DB.InsertOtp(otp, user.Email)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Println("Error inserting otp to db", err)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -190,6 +231,46 @@ func (m *Repository) OtpVerification(w http.ResponseWriter, r *http.Request) {
 	err = json.NewEncoder(w).Encode(response)
 	if err != nil {
 		fmt.Println("Error in encoding response", err)
+		return
+	}
+}
+
+func (m *Repository) StudentDashboard(w http.ResponseWriter, r *http.Request) {
+	username := r.Context().Value("username").(string)
+	fmt.Println(username)
+	role := r.Context().Value("role").(string)
+	fmt.Println(role)
+	allCourses, err := m.DB.GetAllCoursesForStudent(username)
+	if errors.Is(err, errors.New("no courses enrolled by student")) {
+		fmt.Println("No courses enrolled by student", err)
+		http.Error(w, "No courses enrolled by student", http.StatusExpectationFailed)
+		return
+	} else if err != nil {
+		http.Error(w, "Error getting all courses", http.StatusInternalServerError)
+		fmt.Println("Error getting all courses:", err)
+		return
+	}
+
+	recentAssignments, err := m.DB.Get3RecentAssignments(username)
+	if errors.Is(err, errors.New("no tasks Assigned")) {
+		fmt.Println("No tasks Assigned", err)
+		http.Error(w, "No tasks Assigned", http.StatusExpectationFailed)
+		return
+	} else if err != nil {
+		fmt.Println("Error getting recent Assignments:", err)
+		return
+	}
+	fmt.Println("ac", allCourses)
+	fmt.Println("ra", recentAssignments)
+	response := map[string]interface{}{
+		"success":         true,
+		"enrolledCourses": allCourses,
+		"recentTasks":     recentAssignments,
+	}
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		fmt.Println("Error in encoding response", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 }

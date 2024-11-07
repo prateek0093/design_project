@@ -34,7 +34,6 @@ func main() {
 
 	Repo := handlers.NewRepo(db)
 	handlers.NewHandler(Repo)
-
 	fmt.Println("server started on port " + portnumber)
 	srv := http.Server{
 		Addr:    portnumber,
