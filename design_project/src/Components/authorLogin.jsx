@@ -44,7 +44,7 @@ const AuthorLogin = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
 
-    if (validateForm() || import.meta.env.DEVSTAGE === "DEV") {
+    if (import.meta.env.VITE_DEVSTAGE == "DEV" || validateForm() ) {
       try {
         const response = await axios.post(
           import.meta.env.VITE_BE_URL + "/login",

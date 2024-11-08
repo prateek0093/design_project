@@ -3,13 +3,14 @@ import React, { useState, useEffect } from "react";
 import { PlusCircle, BookOpen, Search } from "lucide-react";
 import CourseCard from "./CourseCard";
 import { useCookies } from "react-cookie";
-import { Link } from "react-router-dom";
+import { Link,useNavigate } from "react-router-dom";
 const AllCourses = () => {
   const [courses, setCourses] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [cookies] = useCookies(["accessToken"]);
 
   useEffect(() => {
+    const navigate=useNavigate();
     const fetchCourses = async () => {
       try {
         const response = await fetch(
@@ -27,6 +28,7 @@ const AllCourses = () => {
         setCourses(data.courses); // Set only the courses array
       } catch (error) {
         console.error("Error fetching courses:", error);
+        navigate("/");
       }
     };
 
