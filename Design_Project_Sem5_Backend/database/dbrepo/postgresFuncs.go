@@ -179,7 +179,7 @@ func (m *PostgresRepo) Get3RecentAssignments(name string) ([]SentData.Assignment
 	var data []SentData.AssignmentData
 	defer cancel()
 	query := `SELECT 
-		c.course_id,
+		c.course_code,
 		c.course_name,
 		a.assignment_name,
 		a.start_time AS assignment_start_time
@@ -208,7 +208,7 @@ func (m *PostgresRepo) Get3RecentAssignments(name string) ([]SentData.Assignment
 	}
 	for rows.Next() {
 		var assignmentData SentData.AssignmentData
-		err = rows.Scan(&assignmentData.CourseId, &assignmentData.CourseName, &assignmentData.AssignmentName, &assignmentData.StartTime)
+		err = rows.Scan(&assignmentData.CourseCode, &assignmentData.CourseName, &assignmentData.AssignmentName, &assignmentData.StartTime)
 		if err != nil {
 			fmt.Println("Error scanning assignments:", err)
 			return []SentData.AssignmentData{}, err
@@ -223,4 +223,34 @@ func (m *PostgresRepo) Get3RecentAssignments(name string) ([]SentData.Assignment
 		}
 	}(rows)
 	return data, nil
+}
+
+func (m *PostgresRepo) GetAllCoursesForAuthor(name string) ([]SentData.CourseData, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	var courses []SentData.CourseData
+	query := `SELECT c.course_name,c.course_code
+	FROM COURSES as c
+	JOIN users as u ON c.author_id = u.user_id
+	WHERE u.username = $1
+	`
+	rows, err := m.DB.QueryContext(ctx, query, name)
+	if errors.Is(err, sql.ErrNoRows) {
+		fmt.Println("No courses enrolled by professor")
+		err = errors.New("no courses enrolled by professor")
+		return []SentData.CourseData{}, err
+	} else if err != nil {
+		fmt.Println("Error getting professor's all courses", err)
+		return []SentData.CourseData{}, err
+	}
+	for rows.Next() {
+		var courseData SentData.CourseData
+		err = rows.Scan(&courseData.CourseName, &courseData.CourseCode)
+		if err != nil {
+			fmt.Println("Error scanning courses:", err)
+			return []SentData.CourseData{}, err
+		}
+		courses = append(courses, courseData)
+	}
+	return courses, nil
 }

@@ -274,3 +274,28 @@ func (m *Repository) StudentDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+func (m *Repository) AuthorDashBoard(w http.ResponseWriter, r *http.Request) {
+	name := r.Context().Value("username").(string)
+	fmt.Println(name)
+	allCourses, err := m.DB.GetAllCoursesForAuthor(name)
+	if errors.Is(err, errors.New("no courses enrolled by author")) {
+		fmt.Println("No courses enrolled by author", err)
+		http.Error(w, "No courses enrolled by author", http.StatusExpectationFailed)
+		return
+	} else if err != nil {
+		fmt.Println("Error getting courses", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	response := map[string]interface{}{
+		"success": true,
+		"courses": allCourses,
+	}
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		fmt.Println("Error in encoding response", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}

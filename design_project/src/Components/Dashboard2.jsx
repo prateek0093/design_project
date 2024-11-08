@@ -39,7 +39,11 @@ const Dashboard = () => {
 
       const data = await response.json();
       console.log('Dashboard Data:', data);
-      setDashboardData(data);
+
+      setDashboardData({
+        enrolledCourses: data.enrolledCourses || [],
+        recentTasks: data.recentTasks || [],
+      });
       setLoading(false);
     } catch (error) {
       setError('Error fetching dashboard data');
@@ -82,9 +86,7 @@ const Dashboard = () => {
       <div className="flex h-screen bg-neutral-100">
         {/* Sidebar */}
         <div
-            className={`${
-                isSidebarOpen ? "w-64" : "w-20"
-            } bg-white transition-all duration-300 shadow-lg hidden md:block relative`}
+            className={`${isSidebarOpen ? "w-64" : "w-20"} bg-white transition-all duration-300 shadow-lg hidden md:block relative`}
         >
           <button
               onClick={() => setSidebarOpen(!isSidebarOpen)}
@@ -104,9 +106,7 @@ const Dashboard = () => {
             {navItems.map((item, idx) => (
                 <div
                     key={idx}
-                    className={`${
-                        item.active ? "bg-purple-100" : ""
-                    } flex items-center p-3 space-x-2 rounded-md cursor-pointer hover:bg-purple-100`}
+                    className={`${item.active ? "bg-purple-100" : ""} flex items-center p-3 space-x-2 rounded-md cursor-pointer hover:bg-purple-100`}
                 >
                   <img
                       src={item.icon}
@@ -126,18 +126,34 @@ const Dashboard = () => {
           <div className="mt-5">
             <h2 className="text-xl font-semibold text-gray-800">Enrolled Courses</h2>
             <ul className="mt-2">
-              {dashboardData.enrolledCourses.map((course, index) => (
-                  <li key={index} className="text-gray-600">{course}</li>
-              ))}
+              {dashboardData.enrolledCourses && dashboardData.enrolledCourses.length > 0 ? (
+                  dashboardData.enrolledCourses.map((course, index) => (
+                      <li key={index} className="text-gray-600">
+                        <strong>{course.courseName || "Unnamed Course"}</strong> - {course.courseId || "No ID"} <br />
+                        Code: {course.courseCode || "No Code"} <br />
+                        Author: {course.authorName || "No Author"}
+                      </li>
+                  ))
+              ) : (
+                  <li className="text-gray-600">No enrolled courses</li>
+              )}
             </ul>
           </div>
 
           <div className="mt-5">
             <h2 className="text-xl font-semibold text-gray-800">Recent Tasks</h2>
             <ul className="mt-2">
-              {dashboardData.recentTasks.map((task, index) => (
-                  <li key={index} className="text-gray-600">{task}</li>
-              ))}
+              {dashboardData.recentTasks && dashboardData.recentTasks.length > 0 ? (
+                  dashboardData.recentTasks.map((task, index) => (
+                      <li key={index} className="text-gray-600">
+                        <strong>{task.assignmentName || "Unnamed Task"}</strong> for Course: {task.courseName || "No Course"} <br />
+                        Task ID: {task.courseId || "No ID"} <br />
+                        Start Time: {task.startTime || "No Start Time"}
+                      </li>
+                  ))
+              ) : (
+                  <li className="text-gray-600">No recent tasks</li>
+              )}
             </ul>
           </div>
         </div>

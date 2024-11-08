@@ -6,6 +6,7 @@ import "./index.css";
 import LeetCodeLogin from "./Components/Login.jsx";
 import LeetCodePage from "./Components/SignUp.jsx";
 import Dashboard from "./Components/Dashboard2.jsx";
+import ProfDashboard from "./Components/AllCourses.jsx"
 const App = () => {
   return (
     <div className="app">
@@ -31,9 +32,13 @@ const appRouter = createBrowserRouter([
         element: <LeetCodePage />,
       },
       {
-        path: "/landingpage",
+        path: "/studentDashboard",
         element: <Dashboard />,
       },
+      {
+        path: "/profDashboard",
+        element: <ProfDashboard />,
+      }
     ],
   },
 ]);

@@ -15,4 +15,5 @@ type DatabaseRepo interface {
 	GetAllCoursesForStudent(name string) ([]SentData.CourseData, error)
 	Get3RecentAssignments(name string) ([]SentData.AssignmentData, error)
 	GetRoleFromUserName(name string) (string, error)
+	GetAllCoursesForAuthor(name string) ([]SentData.CourseData, error)
 }

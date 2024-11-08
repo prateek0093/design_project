@@ -10,7 +10,7 @@ type CourseData struct {
 }
 type AssignmentData struct {
 	CourseName     string    `json:"courseName"`
-	CourseId       string    `json:"courseId"`
+	CourseCode     string    `json:"courseCode"`
 	AssignmentName string    `json:"assignmentName"`
 	StartTime      time.Time `json:"startTime"`
 }
