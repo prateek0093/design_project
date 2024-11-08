@@ -1,19 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { PlusCircle, BookOpen, Search } from 'lucide-react';
-import axios from 'axios';
-import TestCard from './TestCard';
+import React, { useState, useEffect } from "react";
+import { PlusCircle, BookOpen, Search } from "lucide-react";
+import axios from "axios";
+import TestCard from "./TestCard";
 
 const AllTestsPage = () => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [testData, setTestData] = useState([]);
 
   useEffect(() => {
     const fetchTestData = async () => {
       try {
-        const response = await axios.get('/api/tests');
+        const response = await axios.get("/api/tests");
         setTestData(response.data);
       } catch (error) {
-        console.error('Error fetching test data:', error);
+        console.error("Error fetching test data:", error);
       }
     };
 
@@ -44,7 +44,10 @@ const AllTestsPage = () => {
 
           {/* Search Bar */}
           <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+            <Search
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+              size={20}
+            />
             <input
               type="text"
               placeholder="Search tests..."
@@ -69,13 +72,21 @@ const AllTestsPage = () => {
           <div className="text-center py-12">
             {searchQuery ? (
               <>
-                <h3 className="text-xl text-gray-600">No matching tests found</h3>
-                <p className="text-gray-500 mt-2">Try adjusting your search terms</p>
+                <h3 className="text-xl text-gray-600">
+                  No matching tests found
+                </h3>
+                <p className="text-gray-500 mt-2">
+                  Try adjusting your search terms
+                </p>
               </>
             ) : (
               <>
-                <h3 className="text-xl text-gray-600">No tests available yet</h3>
-                <p className="text-gray-500 mt-2">Create your first test to get started</p>
+                <h3 className="text-xl text-gray-600">
+                  No tests available yet
+                </h3>
+                <p className="text-gray-500 mt-2">
+                  Create your first test to get started
+                </p>
               </>
             )}
           </div>

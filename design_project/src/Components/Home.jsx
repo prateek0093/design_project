@@ -1,5 +1,5 @@
 import React from "react";
-import {Link, useNavigate} from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import aadmi from "/aadmi.png";
 const Home = () => {
   const navigate = useNavigate();
@@ -21,13 +21,24 @@ const Home = () => {
                 </a>
               </li>
               <li>
-                <a href="#" className="text-gray-600 hover:text-purple-600">
+                <Link
+                  to="/authorLogin"
+                  style={{ textDecoration: "none", color: "inherit" }}
+                >
                   Author
-                </a>
+                </Link>
               </li>
               <li>
-                <button onClick={()=>navigate("/signup")} className="bg-purple-500 text-white px-4 py-2 rounded-full hover:bg-purple-600 transition">
-                  Student
+                <button
+                  onClick={() => navigate("/signup")}
+                  className="bg-purple-500 text-white px-4 py-2 rounded-full hover:bg-purple-600 transition"
+                >
+                  <Link
+                    to="/signup"
+                    style={{ textDecoration: "none", color: "inherit" }}
+                  >
+                    Student
+                  </Link>
                 </button>
               </li>
             </ul>

@@ -3,10 +3,12 @@ import ReactDOM from "react-dom/client";
 import Home from "./Components/Home.jsx";
 import { createBrowserRouter, RouterProvider, Outlet } from "react-router-dom";
 import "./index.css";
-import LeetCodeLogin from "./Components/Login.jsx";
+import StudentLogin from "./Components/studentLogin.jsx";
 import LeetCodePage from "./Components/SignUp.jsx";
-import Dashboard from "./Components/Dashboard2.jsx";
-import ProfDashboard from "./Components/AllCourses.jsx"
+import Dashboard from "./Components/studentDashboard.jsx";
+import AuthorLogin from "./Components/authorLogin.jsx";
+import AllCourses from "./Components/profDashboard.jsx";
+import AddCourse from "./Components/AddCourses.jsx";
 const App = () => {
   return (
     <div className="app">
@@ -25,7 +27,11 @@ const appRouter = createBrowserRouter([
       },
       {
         path: "/login",
-        element: <LeetCodeLogin />,
+        element: <StudentLogin />,
+      },
+      {
+        path: "/authorLogin",
+        element: <AuthorLogin />,
       },
       {
         path: "/signup",
@@ -37,8 +43,12 @@ const appRouter = createBrowserRouter([
       },
       {
         path: "/profDashboard",
-        element: <ProfDashboard />,
-      }
+        element: <AllCourses />,
+      },
+      {
+        path: "/profDashboard/addCourses",
+        element: <AddCourse />,
+      },
     ],
   },
 ]);
