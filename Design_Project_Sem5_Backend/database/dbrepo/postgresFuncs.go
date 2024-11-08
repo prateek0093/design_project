@@ -229,7 +229,7 @@ func (m *PostgresRepo) GetAllCoursesForAuthor(name string) ([]SentData.CourseDat
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	var courses []SentData.CourseData
-	query := `SELECT c.course_name,c.course_code
+	query := `SELECT c.course_name,c.course_code,c.course_id
 	FROM COURSES as c
 	JOIN users as u ON c.author_id = u.user_id
 	WHERE u.username = $1
@@ -245,7 +245,7 @@ func (m *PostgresRepo) GetAllCoursesForAuthor(name string) ([]SentData.CourseDat
 	}
 	for rows.Next() {
 		var courseData SentData.CourseData
-		err = rows.Scan(&courseData.CourseName, &courseData.CourseCode)
+		err = rows.Scan(&courseData.CourseName, &courseData.CourseCode, &courseData.CourseId)
 		if err != nil {
 			fmt.Println("Error scanning courses:", err)
 			return []SentData.CourseData{}, err
@@ -253,4 +253,24 @@ func (m *PostgresRepo) GetAllCoursesForAuthor(name string) ([]SentData.CourseDat
 		courses = append(courses, courseData)
 	}
 	return courses, nil
+}
+
+func (m *PostgresRepo) AddCourse(username, courseCode, courseName string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	query := `INSERT INTO courses (course_id, author_id, course_code, course_name, created_at,updated_at)
+        VALUES (
+            gen_random_uuid(),
+            (SELECT user_id FROM users WHERE username = $1),
+            $2,
+            $3,
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+        );`
+	_, err := m.DB.ExecContext(ctx, query, username, courseCode, courseName)
+	if err != nil {
+		fmt.Println("Error adding course:", err)
+		return err
+	}
+	return nil
 }

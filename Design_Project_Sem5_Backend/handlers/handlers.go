@@ -299,3 +299,29 @@ func (m *Repository) AuthorDashBoard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+func (m *Repository) AddCourse(w http.ResponseWriter, r *http.Request) {
+	username := r.Context().Value("username").(string)
+	type NewCourse struct {
+		CourseName string `json:"courseName"`
+		CourseCode string `json:"courseCode"`
+	}
+	var newCourse NewCourse
+	err := json.NewDecoder(r.Body).Decode(&newCourse)
+	if err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		fmt.Println("Error parsing data", err)
+		return
+	}
+	fmt.Println("Decoded course:", newCourse)
+
+	err = m.DB.AddCourse(username, newCourse.CourseCode, newCourse.CourseName)
+	if err != nil {
+		http.Error(w, "Failed to add course", http.StatusInternalServerError)
+		fmt.Println("Error adding course", err)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	_, _ = w.Write([]byte("Course added successfully"))
+}

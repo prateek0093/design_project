@@ -8,9 +8,9 @@ const AllCourses = () => {
   const [courses, setCourses] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [cookies] = useCookies(["accessToken"]);
-
+  const navigate=useNavigate();
   useEffect(() => {
-    const navigate=useNavigate();
+
     const fetchCourses = async () => {
       try {
         const response = await fetch(
