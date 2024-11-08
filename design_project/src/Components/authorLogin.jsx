@@ -44,10 +44,10 @@ const AuthorLogin = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
 
-    if (validateForm()) {
+    if (validateForm() || import.meta.env.DEVSTAGE === "DEV") {
       try {
         const response = await axios.post(
-          import.meta.env.VITE_BE_URL + "/author/login",
+          import.meta.env.VITE_BE_URL + "/login",
           formData,
           {
             withCredentials: true,
@@ -61,7 +61,7 @@ const AuthorLogin = () => {
             secure: false,
           });
 
-          navigate("/authorDashboard", { state: { username: username } });
+          navigate("/profDashboard", { state: { username: username } });
         } else {
           setError((prev) => ({
             ...prev,
