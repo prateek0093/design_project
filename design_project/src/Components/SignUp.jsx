@@ -119,13 +119,23 @@ const SignUp = () => {
             href="#"
             className="text-gray-600 px-4 py-2 rounded-full hover:text-purple-600 hover:bg-purple-50 transition-all"
           >
-            Author
+            <Link
+              to="/authorLogin"
+              style={{ textDecoration: "none", color: "inherit" }}
+            >
+              Author
+            </Link>
           </a>
           <a
             href="#"
             className="text-purple-600 px-4 py-2 rounded-full bg-purple-50"
           >
-            Student
+            <Link
+              to="/signup"
+              style={{ textDecoration: "none", color: "inherit" }}
+            >
+              Student
+            </Link>
           </a>
         </nav>
       </header>
@@ -216,7 +226,11 @@ const SignUp = () => {
             </form>
 
             <div className="flex justify-between items-center text-xs my-6">
-              <p onClick={()=>navigate("/login")} className="text-purple-600 font-semibold">
+              <p
+                onClick={() => navigate("/login")}
+                className="text-purple-600 font-semibold"
+                cursor-pointer
+              >
                 Log In
               </p>
             </div>

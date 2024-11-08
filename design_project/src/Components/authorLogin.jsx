@@ -94,10 +94,20 @@ const AuthorLogin = () => {
               Explore
             </button>
             <button className="bg-blue-500 text-white px-4 py-2 rounded-full hover:bg-blue-600">
-              Author
+              <Link
+                to="/authorLogin"
+                style={{ textDecoration: "none", color: "inherit" }}
+              >
+                Author
+              </Link>
             </button>
             <button className="text-blue-500 hover:text-blue-600">
-              Student
+              <Link
+                to="/signup"
+                style={{ textDecoration: "none", color: "inherit" }}
+              >
+                Student
+              </Link>
             </button>
           </nav>
         </div>

@@ -49,17 +49,15 @@ const AllCourses = () => {
               <BookOpen className="w-8 h-8 text-purple-600" />
               <h1 className="text-2xl font-bold text-gray-800">All Courses</h1>
             </div>
-            <button className="flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg">
-              <PlusCircle size={20} />
-              <span>
-                <Link
-                  to="/profDashboard/addCourses"
-                  style={{ textDecoration: "none", color: "inherit" }}
-                >
-                  Add Course
-                </Link>
-              </span>
-            </button>
+            <Link
+              to="/profDashboard/addCourses"
+              style={{ textDecoration: "none", color: "inherit" }}
+            >
+              <button className="flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg">
+                <PlusCircle size={20} />
+                <span>Add Course</span>
+              </button>
+            </Link>
           </div>
 
           {/* Search Bar */}
