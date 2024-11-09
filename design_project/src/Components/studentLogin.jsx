@@ -44,7 +44,7 @@ const StudentLogin = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
 
-    if (validateForm()) {
+    if (import.meta.env.VITE_BE_DEVSTAGE ==="DEV"|| validateForm()) {
       try {
         const response = await axios.post(
           import.meta.env.VITE_BE_URL + "/login",
@@ -61,7 +61,7 @@ const StudentLogin = () => {
             secure: false,
           });
 
-          navigate("/landingpage", { state: { username: username } });
+          navigate("/studentDashboard", { state: { username: username } });
         } else {
           setError((prev) => ({
             ...prev,
