@@ -81,13 +81,19 @@ const AllCourses = () => {
         </header>
 
         {/* Courses Grid */}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredCourses.map((course, index) => (
-            <CourseCard
+            <Link
               key={index}
-              courseName={course.courseName}
-              courseCode={course.courseCode}
-            />
+              to={`/profDashboard/addAssignment/${course.courseCode}`}
+              style={{ textDecoration: "none" }}
+            >
+              <CourseCard
+                courseName={course.courseName}
+                courseCode={course.courseCode}
+              />
+            </Link>
           ))}
         </div>
 

@@ -9,6 +9,7 @@ import Dashboard from "./Components/studentDashboard.jsx";
 import AuthorLogin from "./Components/authorLogin.jsx";
 import AllCourses from "./Components/profDashboard.jsx";
 import AddCourse from "./Components/AddCourses.jsx";
+import CourseAssignments from "./Components/addAssignment.jsx";
 const App = () => {
   return (
     <div className="app">
@@ -48,6 +49,10 @@ const appRouter = createBrowserRouter([
       {
         path: "/profDashboard/addCourses",
         element: <AddCourse />,
+      },
+      {
+        path: "/profDashboard/addAssignment/:courseCode",
+        element: <CourseAssignments />,
       },
     ],
   },
