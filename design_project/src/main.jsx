@@ -9,7 +9,7 @@ import Dashboard from "./Components/studentDashboard.jsx";
 import AuthorLogin from "./Components/authorLogin.jsx";
 import AllCourses from "./Components/profDashboard.jsx";
 import AddCourse from "./Components/AddCourses.jsx";
-import CourseAssignments from "./Components/addAssignment.jsx";
+import CourseAssignments from "./Components/AllTestsPage.jsx";
 const App = () => {
   return (
     <div className="app">
