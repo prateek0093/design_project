@@ -9,8 +9,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/joho/godotenv"
+	"io"
 	"math/big"
 	"net/http"
 	"net/smtp"
@@ -324,4 +326,119 @@ func (m *Repository) AddCourse(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	_, _ = w.Write([]byte("Course added successfully"))
+}
+
+func (m *Repository) AllAssignment(w http.ResponseWriter, r *http.Request) {
+	courseCode := chi.URLParam(r, "id")
+	fmt.Println("CourseCode:", courseCode)
+	assignments, err := m.DB.GetAssignmentsForCourse(courseCode)
+	if errors.Is(err, errors.New("no assignments assigned")) {
+		fmt.Println(err)
+		http.Error(w, "no assignments assigned", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	} else if err != nil {
+		fmt.Println("Error getting assignments from db", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	fmt.Println(assignments)
+	response := map[string]interface{}{
+		"success":     true,
+		"assignments": assignments,
+	}
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		fmt.Println("Error encoding json")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+func (m *Repository) AddAssignment(w http.ResponseWriter, r *http.Request) {
+	courseCode := chi.URLParam(r, "id")
+
+	// Parse the form data (including files)
+	err := r.ParseMultipartForm(10 << 20) // 10 MB limit
+	if err != nil {
+		http.Error(w, "Unable to parse form data", http.StatusBadRequest)
+		fmt.Println(err)
+		return
+	}
+
+	// Create a new assignment object
+	var newAssignment RecievedData.Assignment
+	newAssignment.CourseCode = courseCode
+	newAssignment.AssignmentName = r.FormValue("assignmentName")
+	newAssignment.StartTime, _ = time.Parse("2006-01-02", r.FormValue("startTime"))
+	newAssignment.EndTime, _ = time.Parse("2006-01-02", r.FormValue("endTime"))
+	newAssignment.CreatedAt = time.Now()
+
+	// Extract questions and their files from the form data
+	var questions []RecievedData.Question
+	// Assuming the form contains multiple questions, we need to loop through them
+	for i := 0; i < len(r.MultipartForm.File["questions[0].cfile"]); i++ {
+		// Get the question text and the file content for each question
+		quesText := r.FormValue(fmt.Sprintf("questions[%d].ques", i))
+
+		// Get the files associated with the question
+		cfile, cfileExists := r.MultipartForm.File[fmt.Sprintf("questions[%d].cfile", i)]
+		csv, csvExists := r.MultipartForm.File[fmt.Sprintf("questions[%d].csv", i)]
+
+		// Ensure both files are present in the form
+		if !cfileExists || len(cfile) == 0 {
+			http.Error(w, fmt.Sprintf("Code file for question %d is missing", i), http.StatusBadRequest)
+			return
+		}
+		if !csvExists || len(csv) == 0 {
+			http.Error(w, fmt.Sprintf("Test cases file for question %d is missing", i), http.StatusBadRequest)
+			return
+		}
+
+		// Read the file content directly from the multipart form
+		codeFile, err := cfile[0].Open()
+		if err != nil {
+			http.Error(w, "Error opening code file", http.StatusInternalServerError)
+			fmt.Println(err)
+			return
+		}
+		codeFileContent, err := io.ReadAll(codeFile)
+		if err != nil {
+			http.Error(w, "Error reading code file", http.StatusInternalServerError)
+			fmt.Println(err)
+			return
+		}
+
+		testCasesFile, err := csv[0].Open()
+		if err != nil {
+			http.Error(w, "Error opening test cases file", http.StatusInternalServerError)
+			fmt.Println(err)
+			return
+		}
+		testCasesFileContent, err := io.ReadAll(testCasesFile)
+		if err != nil {
+			http.Error(w, "Error reading test cases file", http.StatusInternalServerError)
+			fmt.Println(err)
+			return
+		}
+
+		// Create a question struct and append it to the questions slice
+		questions = append(questions, RecievedData.Question{
+			QuestionName:  quesText,
+			CodeFile:      codeFileContent,
+			TestCasesFile: testCasesFileContent,
+			CreatedAt:     time.Now(),
+		})
+	}
+
+	// Assign the questions to the new assignment
+	newAssignment.Questions = questions
+
+	// Here you can save the new assignment to the database (e.g., using ORM or raw SQL)
+	fmt.Println("NewAssignment", string(newAssignment.Questions[0].CodeFile))
+	fmt.Println("courseCode", courseCode)
+
+	// For now, let's just return a success message
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Assignment added successfully"))
 }

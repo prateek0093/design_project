@@ -41,6 +41,8 @@ func routes() http.Handler {
 		mux.Route("/author", func(mux chi.Router) {
 			mux.With(RoleMiddleware("author")).Get("/dashboard", handlers.Repo.AuthorDashBoard)
 			mux.With(RoleMiddleware("author")).Post("/addCourse", handlers.Repo.AddCourse)
+			mux.With(RoleMiddleware("author")).Get("/courseAssignments/{id}", handlers.Repo.AllAssignment)
+			mux.With(RoleMiddleware("author")).Post("/addAssignment/{id}", handlers.Repo.AddAssignment)
 		})
 		mux.Route("/student", func(mux chi.Router) {
 			mux.With(RoleMiddleware("student")).Get("/dashboard", handlers.Repo.StudentDashboard)

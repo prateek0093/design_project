@@ -18,7 +18,7 @@ type Claims struct {
 
 // extractTokenFromCookie extracts and validates the JWT token from the "accessToken" cookie
 func extractTokenFromCookie(r *http.Request) (*Claims, error) {
-	fmt.Println(r)
+	//fmt.Println(r)
 	cookie, err := r.Cookie("accessToken")
 	if errors.Is(err, http.ErrNoCookie) {
 		fmt.Println("No cookie found:", err)

@@ -274,3 +274,53 @@ func (m *PostgresRepo) AddCourse(username, courseCode, courseName string) error 
 	}
 	return nil
 }
+
+func (m *PostgresRepo) GetAssignmentsForCourse(courseCode string) ([]SentData.AssignmentData, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	var assignments []SentData.AssignmentData
+	query := `SELECT a.assignment_id, a.assignment_name, a.start_time, a.expiration_time 
+		FROM assignments as a
+		JOIN courses as c ON c.course_id = a.course_id
+		WHERE c.course_code = $1`
+
+	rows, err := m.DB.QueryContext(ctx, query, courseCode)
+	if errors.Is(err, sql.ErrNoRows) {
+		fmt.Println("No assignments yet for this course")
+		err = errors.New("no assignments assigned")
+		return []SentData.AssignmentData{}, err
+	} else if err != nil {
+		fmt.Println("Error finding assignments")
+		return []SentData.AssignmentData{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var assignment SentData.AssignmentData
+		err = rows.Scan(&assignment.AssignmentId, &assignment.AssignmentName, &assignment.StartTime, &assignment.EndTime)
+		if err != nil {
+			fmt.Println("Error scanning assignments:", err)
+			return []SentData.AssignmentData{}, err
+		}
+		assignments = append(assignments, assignment)
+	}
+	return assignments, nil
+}
+
+func (m *PostgresRepo) addAssignment(assignment RecievedData.Assignment) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	query := `INSERT INTO assignments (course_id, assignment_name, start_time, expiration_time, created_at)
+	VALUES ((SELECT course_id FROM courses WHERE course_code= $1),$2,$3,$4,$5,CURRENT_TIMESTAMP)
+	`
+	_, err := m.DB.ExecContext(ctx, query, assignment.AssignmentName, assignment.StartTime, assignment.EndTime)
+	if err != nil {
+		fmt.Println("Error adding assignment:", err)
+		return err
+	}
+	//for i := 0; i < len(assignment.Questions); i++ {
+	//
+	//}
+	return nil
+}
