@@ -22,7 +22,7 @@ const Home = () => {
               </li>
               <li>
                 <Link
-                  to="/profDashboard/addAssignment/:courseCode"
+                  to="/authorLogin"
                   style={{ textDecoration: "none", color: "inherit" }}
                 >
                   Author
