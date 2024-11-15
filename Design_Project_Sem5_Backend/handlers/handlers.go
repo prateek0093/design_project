@@ -307,6 +307,8 @@ func (m *Repository) AddCourse(w http.ResponseWriter, r *http.Request) {
 	type NewCourse struct {
 		CourseName string `json:"courseName"`
 		CourseCode string `json:"courseCode"`
+		BatchYear  string `json:"batchYear"`
+		Branch     string `json:"branch"`
 	}
 	var newCourse NewCourse
 	err := json.NewDecoder(r.Body).Decode(&newCourse)
@@ -317,7 +319,7 @@ func (m *Repository) AddCourse(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Println("Decoded course:", newCourse)
 
-	err = m.DB.AddCourse(username, newCourse.CourseCode, newCourse.CourseName)
+	err = m.DB.AddCourse(username, newCourse.CourseCode, newCourse.CourseName, newCourse.BatchYear, newCourse.Branch)
 	if err != nil {
 		http.Error(w, "Failed to add course", http.StatusInternalServerError)
 		fmt.Println("Error adding course", err)
@@ -376,10 +378,16 @@ func (m *Repository) AddAssignment(w http.ResponseWriter, r *http.Request) {
 
 	// Extract questions and their files from the form data
 	var questions []RecievedData.Question
+	length, err := strconv.Atoi(r.FormValue("length"))
+	if err != nil {
+		fmt.Println("error parsing length", err)
+		return
+	}
 	// Assuming the form contains multiple questions, we need to loop through them
-	for i := 0; i < len(r.MultipartForm.File["questions[0].cfile"]); i++ {
+	for i := 0; i < length; i++ {
 		// Get the question text and the file content for each question
 		quesText := r.FormValue(fmt.Sprintf("questions[%d].ques", i))
+		quesMaxMarks := r.FormValue(fmt.Sprintf("questions[%d].maximumMarks", i))
 
 		// Get the files associated with the question
 		cfile, cfileExists := r.MultipartForm.File[fmt.Sprintf("questions[%d].cfile", i)]
@@ -421,10 +429,17 @@ func (m *Repository) AddAssignment(w http.ResponseWriter, r *http.Request) {
 			fmt.Println(err)
 			return
 		}
+		maxMarks, err := strconv.Atoi(quesMaxMarks)
+		if err != nil {
+			http.Error(w, "Error parsing max marks", http.StatusInternalServerError)
+			fmt.Println("error parsing Max Marks", err)
+			return
+		}
 
 		// Create a question struct and append it to the questions slice
 		questions = append(questions, RecievedData.Question{
-			QuestionName:  quesText,
+			QuestionText:  quesText,
+			MaxScore:      maxMarks,
 			CodeFile:      codeFileContent,
 			TestCasesFile: testCasesFileContent,
 			CreatedAt:     time.Now(),
@@ -435,7 +450,19 @@ func (m *Repository) AddAssignment(w http.ResponseWriter, r *http.Request) {
 	newAssignment.Questions = questions
 
 	// Here you can save the new assignment to the database (e.g., using ORM or raw SQL)
-	fmt.Println("NewAssignment", string(newAssignment.Questions[0].CodeFile))
+	err = m.DB.AddAssignment(newAssignment)
+	if err != nil {
+		http.Error(w, "Failed to add assignment", http.StatusInternalServerError)
+		fmt.Println(err)
+		return
+	}
+	//fmt.Println("NewAssignment", newAssignment)
+	fmt.Println("newAssignment name:", newAssignment.AssignmentName, "newAssignment start time:", newAssignment.StartTime, "newAssignment end time:", newAssignment.EndTime)
+	for i := 0; i < len(newAssignment.Questions); i++ {
+		fmt.Println("newAssignment Question name:", newAssignment.Questions[0].QuestionText)
+		fmt.Println("newAssignment Question code:", string(newAssignment.Questions[0].CodeFile))
+		fmt.Println("newAssignment Question csv", string(newAssignment.Questions[0].TestCasesFile))
+	}
 	fmt.Println("courseCode", courseCode)
 
 	// For now, let's just return a success message

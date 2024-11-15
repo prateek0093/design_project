@@ -21,7 +21,8 @@ type Assignment struct {
 }
 type Question struct {
 	//AssignmentName string    `json:"assignmentName"`
-	QuestionName  string    `json:"ques"`
+	QuestionText  string    `json:"ques"`
+	MaxScore      int       `json:"maxScore"`
 	CodeFile      []byte    `json:"cfile"` // Stores the .c file content
 	TestCasesFile []byte    `json:"csv"`   // Stores the .csv file content
 	CreatedAt     time.Time `json:"createdAt"`

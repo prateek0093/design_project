@@ -255,7 +255,12 @@ func (m *PostgresRepo) GetAllCoursesForAuthor(name string) ([]SentData.CourseDat
 	return courses, nil
 }
 
-func (m *PostgresRepo) AddCourse(username, courseCode, courseName string) error {
+func (m *PostgresRepo) AddCourse(username, courseCode, courseName, batchYear, branch string) error {
+	tx, err := m.DB.Begin()
+	if err != nil {
+		fmt.Println("Error creating course:", err)
+		return err
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	query := `INSERT INTO courses (course_id, author_id, course_code, course_name, created_at,updated_at)
@@ -267,10 +272,52 @@ func (m *PostgresRepo) AddCourse(username, courseCode, courseName string) error 
             CURRENT_TIMESTAMP,
             CURRENT_TIMESTAMP
         );`
-	_, err := m.DB.ExecContext(ctx, query, username, courseCode, courseName)
+	_, err = tx.ExecContext(ctx, query, username, courseCode, courseName)
 	if err != nil {
 		fmt.Println("Error adding course:", err)
 		return err
+	}
+	branchCode := "51"
+	if branch == "IT" {
+		branchCode = "52"
+	} else if branch == "BOTH" {
+		branchCode = ""
+	}
+	emailPattern := fmt.Sprintf("%s%s%%", batchYear, branchCode)
+	query = `SELECT user_id from users where email LIKE $1`
+	rows, err := tx.QueryContext(ctx, query, emailPattern)
+	if err != nil {
+		fmt.Println("Error adding course:", err)
+		err1 := tx.Rollback()
+		if err1 != nil {
+			fmt.Println("Error adding course", err1)
+			return err
+		}
+		return err
+	}
+	for rows.Next() {
+		var userId int
+		err = rows.Scan(&userId)
+		if err != nil {
+			fmt.Println("Error scanning course:", err)
+			err1 := tx.Rollback()
+			if err1 != nil {
+				fmt.Println("Error scanning course:", err1)
+				return err1
+			}
+			return err
+		}
+		query1 := `INSERT INTO enrollments (course_id, user_id, enrollment_date) VALUES (SELECT course_id from courses where courseCode=$1,$2,CURRENT_TIMESTAMP)`
+		_, err = tx.ExecContext(ctx, query1, courseCode, userId)
+		if err != nil {
+			fmt.Println("Error adding enrollment:", err)
+			err1 := tx.Rollback()
+			if err1 != nil {
+				fmt.Println("Error adding enrollment:", err1)
+				return err1
+			}
+			return err
+		}
 	}
 	return nil
 }
@@ -308,19 +355,49 @@ func (m *PostgresRepo) GetAssignmentsForCourse(courseCode string) ([]SentData.As
 	return assignments, nil
 }
 
-func (m *PostgresRepo) addAssignment(assignment RecievedData.Assignment) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-	query := `INSERT INTO assignments (course_id, assignment_name, start_time, expiration_time, created_at)
-	VALUES ((SELECT course_id FROM courses WHERE course_code= $1),$2,$3,$4,$5,CURRENT_TIMESTAMP)
-	`
-	_, err := m.DB.ExecContext(ctx, query, assignment.AssignmentName, assignment.StartTime, assignment.EndTime)
+func (m *PostgresRepo) AddAssignment(assignment RecievedData.Assignment) error {
+	tx, err := m.DB.Begin()
 	if err != nil {
 		fmt.Println("Error adding assignment:", err)
 		return err
 	}
-	//for i := 0; i < len(assignment.Questions); i++ {
-	//
-	//}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	query := `INSERT INTO assignments (course_id, assignment_name, start_time, expiration_time, created_at)
+	VALUES ((SELECT course_id FROM courses WHERE course_code= $1),$2,$3,$4,CURRENT_TIMESTAMP)
+	`
+	_, err = tx.ExecContext(ctx, query, assignment.CourseCode, assignment.AssignmentName, assignment.StartTime, assignment.EndTime)
+	if err != nil {
+		fmt.Println("Error adding assignment:", err)
+		err1 := tx.Rollback()
+		if err1 != nil {
+			fmt.Println("Error rolling back:", err1)
+			return err1
+		}
+		return errors.New("error inserting assignment: ")
+	}
+
+	for i := 0; i < len(assignment.Questions); i++ {
+		question := assignment.Questions[i]
+		query := `INSERT INTO questions (assignment_id,question_text,max_score,testcases_file,correct_code_file)
+		VALUES ((SELECT assignment_id FROM assignments WHERE assignment_name= $1),$2,$3,$4,$5)
+		`
+		_, err = tx.ExecContext(ctx, query, assignment.AssignmentName, question.QuestionText, question.MaxScore, question.TestCasesFile, question.CodeFile)
+		if err != nil {
+			fmt.Println("Error adding question:", err)
+			err1 := tx.Rollback()
+			if err1 != nil {
+				fmt.Println("Error rolling back:", err1)
+				return err1
+			}
+			return errors.New("error inserting question: ")
+		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		err = errors.New("error committing transaction")
+		fmt.Println("Error adding assignment:", err)
+		return err
+	}
 	return nil
 }
