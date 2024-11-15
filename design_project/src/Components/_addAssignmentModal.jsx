@@ -1,52 +1,66 @@
 import { useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useCookies } from "react-cookie";
 
 export default function AddAssignmentModal({ setter }) {
   const [state, setState] = useState(0);
+  const { courseCode } = useParams();
+  const [cookie] = useCookies(["accessToken"]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     questions: [],
     assignmentName: "",
     startTime: "",
     endTime: "",
-    branch: "CSE", // New field with default option
-    batchYear: "", // New field
   });
 
   const handleSubmit = async () => {
     if (
-      !formData.assignmentName ||
-      !formData.startTime ||
-      !formData.endTime ||
-      !formData.batchYear
+        !formData.assignmentName ||
+        !formData.startTime ||
+        !formData.endTime
     ) {
       setState(0);
       alert("Please fill all fields.");
       return;
     }
     if (
-      formData.questions.length === 0 ||
-      formData.questions.some((q) => !q.ques || !q.maximumMarks)
+        formData.questions.length === 0 ||
+        formData.questions.some((q) => !q.ques || !q.maximumMarks || !q.cFile || !q.csv)
     ) {
       setState(1);
-      alert("Each question must have text and maximum marks.");
+      alert("Each question must have text, maximum marks, and files.");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const requestData = {
-        assignmentName: formData.assignmentName,
-        startTime: formData.startTime,
-        endTime: formData.endTime,
-        branch: formData.branch,
-        batchYear: formData.batchYear,
-        questions: formData.questions.filter((q) => q.ques && q.csv && q.cFile),
-      };
+      // Construct a FormData object
+      const formDataToSend = new FormData();
+      formDataToSend.append("assignmentName", formData.assignmentName);
+      formDataToSend.append("startTime", formData.startTime);
+      formDataToSend.append("endTime", formData.endTime);
 
-      const response = await axios.post("/verified/author/tests", requestData, {
-        headers: { "Content-Type": "application/json" },
+      formData.questions.forEach((q, index) => {
+        formDataToSend.append(`questions[${index}].ques`, q.ques);
+        formDataToSend.append(`questions[${index}].maximumMarks`,q.maximumMarks)
+        formDataToSend.append(`questions[${index}].cfile`, q.cFile);
+        formDataToSend.append(`questions[${index}].csv`, q.csv);
       });
+      formDataToSend.append("length", String(formData.questions.length));
+      console.log(formDataToSend.get(`length`))
+      const response = await axios.post(
+          `${import.meta.env.VITE_BE_URL}/verified/author/addAssignment/${courseCode}`,
+          formDataToSend,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+              Authorization: `Bearer ${cookie.accessToken}`,
+            },
+            withCredentials: true,
+          }
+      );
 
       if (response.status === 200) {
         alert("Assignment submitted successfully!");
@@ -95,8 +109,7 @@ export default function AddAssignmentModal({ setter }) {
       return (
         formData.assignmentName &&
         formData.startTime &&
-        formData.endTime &&
-        formData.batchYear
+        formData.endTime
       );
     } else if (state === 1) {
       return formData.questions.every((q) => q.ques && q.maximumMarks);
@@ -156,29 +169,6 @@ export default function AddAssignmentModal({ setter }) {
                   setFormData({ ...formData, endTime: e.target.value })
                 }
                 className="w-[400px] p-2 border rounded-lg"
-              />
-
-              <h2>Branch:</h2>
-              <select
-                value={formData.branch}
-                onChange={(e) =>
-                  setFormData({ ...formData, branch: e.target.value })
-                }
-                className="w-full p-2 border rounded-lg"
-              >
-                <option value="CSE">CSE</option>
-                <option value="IT">IT</option>
-              </select>
-
-              <h2>Batch Year:</h2>
-              <input
-                type="text"
-                value={formData.batchYear || ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, batchYear: e.target.value })
-                }
-                placeholder="Enter batch year"
-                className="w-full p-2 border rounded-lg"
               />
             </div>
           )}
@@ -253,13 +243,6 @@ export default function AddAssignmentModal({ setter }) {
                 <p>
                   <strong>End Date:</strong> {formData.endTime}
                 </p>
-                <p>
-                  <strong>Branch:</strong> {formData.branch}
-                </p>
-                <p>
-                  <strong>Batch Year:</strong> {formData.batchYear}
-                </p>
-
                 {formData.questions.map((question, index) => (
                   <div key={index} className="border-t mt-2 pt-2">
                     <p>
