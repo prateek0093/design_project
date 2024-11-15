@@ -11,6 +11,9 @@ import AllCourses from "./Components/profDashboard.jsx";
 import AddCourse from "./Components/AddCourses.jsx";
 import CourseAssignments from "./Components/AllAssignment.jsx";
 import AssignmentStatus from "./Components/AssignmentStatus.jsx";
+import StudentCourseViewPage from "./Components/studentPages/viewOneCourse.jsx";
+import EditorAttempt from "./Components/studentPages/EditorAttempter.jsx";
+import StudentAssignmentViewPage from "./Components/studentPages/viewOneAssignment.jsx";
 const App = () => {
   return (
     <div className="app">
@@ -42,6 +45,18 @@ const appRouter = createBrowserRouter([
       {
         path: "/studentDashboard",
         element: <Dashboard />,
+      },
+      {
+        path: "/enrolled/:courseCode",
+        element: <StudentCourseViewPage />,
+      },
+      {
+        path: "/editor/:testId",
+        element: <EditorAttempt />,
+      },
+      {
+        path: "/enrolled/:courseCode/:assignment",
+        element: <StudentAssignmentViewPage />,
       },
       {
         path: "/profDashboard",
