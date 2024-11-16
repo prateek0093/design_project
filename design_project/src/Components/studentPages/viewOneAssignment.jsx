@@ -115,7 +115,7 @@ const Accordion = ({ data }) => {
                   transition-colors duration-200"
                 onClick={() => navigate(`/editor/${data.assignmentId}`)}
               >
-                Attempt Assignment
+                Attempt Question
               </button>
             </div>
           </div>
