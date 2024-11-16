@@ -4,6 +4,7 @@ import (
 	"DesignProjectBackend/database"
 	"DesignProjectBackend/database/dbrepo"
 	"DesignProjectBackend/drivers"
+	helpers "DesignProjectBackend/helpers/judge0Funcs"
 	"DesignProjectBackend/models/RecievedData"
 	"crypto/rand"
 	"encoding/json"
@@ -330,7 +331,7 @@ func (m *Repository) AddCourse(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("Course added successfully"))
 }
 
-func (m *Repository) AllAssignment(w http.ResponseWriter, r *http.Request) {
+func (m *Repository) AllAssignmentForCourse(w http.ResponseWriter, r *http.Request) {
 	courseCode := chi.URLParam(r, "id")
 	fmt.Println("CourseCode:", courseCode)
 	assignments, err := m.DB.GetAssignmentsForCourse(courseCode)
@@ -449,7 +450,23 @@ func (m *Repository) AddAssignment(w http.ResponseWriter, r *http.Request) {
 	// Assign the questions to the new assignment
 	newAssignment.Questions = questions
 
-	// Here you can save the new assignment to the database (e.g., using ORM or raw SQL)
+	if err := godotenv.Load(); err != nil {
+		fmt.Println("Error loading environment variables:", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	// Checking code for correctness against all test cases before adding to db
+	for i := 0; i < len(newAssignment.Questions); i++ {
+		question := newAssignment.Questions[i]
+		pass, errString := helpers.ValidateCodeAgainstTestCases(string(question.CodeFile), question.TestCasesFile, os.Getenv("JUDGE0_URL"))
+		if !pass {
+			fmt.Println("Error in validating question:", i+1, errString)
+			http.Error(w, "Failed to add assignment", http.StatusBadRequest)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	}
+	// If all testcases pass add to db
 	err = m.DB.AddAssignment(newAssignment)
 	if err != nil {
 		http.Error(w, "Failed to add assignment", http.StatusInternalServerError)
@@ -457,15 +474,38 @@ func (m *Repository) AddAssignment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//fmt.Println("NewAssignment", newAssignment)
-	fmt.Println("newAssignment name:", newAssignment.AssignmentName, "newAssignment start time:", newAssignment.StartTime, "newAssignment end time:", newAssignment.EndTime)
-	for i := 0; i < len(newAssignment.Questions); i++ {
-		fmt.Println("newAssignment Question name:", newAssignment.Questions[0].QuestionText)
-		fmt.Println("newAssignment Question code:", string(newAssignment.Questions[0].CodeFile))
-		fmt.Println("newAssignment Question csv", string(newAssignment.Questions[0].TestCasesFile))
-	}
-	fmt.Println("courseCode", courseCode)
+	//fmt.Println("newAssignment name:", newAssignment.AssignmentName, "newAssignment start time:", newAssignment.StartTime, "newAssignment end time:", newAssignment.EndTime)
+	//for i := 0; i < len(newAssignment.Questions); i++ {
+	//	fmt.Println("newAssignment Question name:", newAssignment.Questions[0].QuestionText)
+	//	fmt.Println("newAssignment Question code:", string(newAssignment.Questions[0].CodeFile))
+	//	fmt.Println("newAssignment Question csv", string(newAssignment.Questions[0].TestCasesFile))
+	//}
+	//fmt.Println("courseCode", courseCode)
 
 	// For now, let's just return a success message
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Assignment added successfully"))
+}
+
+func (m *Repository) AllQuestionsForAssignment(w http.ResponseWriter, r *http.Request) {
+	courseCode := chi.URLParam(r, "courseId")
+	assignmentId := chi.URLParam(r, "assignmentId")
+	fmt.Println("assignmentId:", assignmentId)
+	fmt.Println("courseCode:", courseCode)
+	questions, err := m.DB.GetAllQuestionsForAssignment(assignmentId)
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	response := map[string]interface{}{
+		"success":   true,
+		"questions": questions,
+	}
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		fmt.Println("Error encoding json")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }

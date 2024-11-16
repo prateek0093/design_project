@@ -16,3 +16,12 @@ type AssignmentData struct {
 	StartTime      time.Time `json:"startTime"`
 	EndTime        time.Time `json:"endTime"`
 }
+type Question struct {
+	//AssignmentName string    `json:"assignmentName"`
+	QuestionId   string `json:"questionId"`
+	QuestionText string `json:"questionText"`
+	MaxScore     int    `json:"maxScore"`
+	//CodeFile      []byte    `json:"cfile"` // Stores the .c file content
+	TestCasesFile []byte    `json:"csv"` // Stores the .csv file content
+	CreatedAt     time.Time `json:"createdAt"`
+}

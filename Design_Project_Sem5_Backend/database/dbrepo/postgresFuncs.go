@@ -327,7 +327,7 @@ func (m *PostgresRepo) GetAssignmentsForCourse(courseCode string) ([]SentData.As
 	defer cancel()
 
 	var assignments []SentData.AssignmentData
-	query := `SELECT a.assignment_id, a.assignment_name, a.start_time, a.expiration_time 
+	query := `SELECT a.assignment_id, a.assignment_name, a.start_time, a.expiration_time,c.course_name 
 		FROM assignments as a
 		JOIN courses as c ON c.course_id = a.course_id
 		WHERE c.course_code = $1`
@@ -345,11 +345,12 @@ func (m *PostgresRepo) GetAssignmentsForCourse(courseCode string) ([]SentData.As
 
 	for rows.Next() {
 		var assignment SentData.AssignmentData
-		err = rows.Scan(&assignment.AssignmentId, &assignment.AssignmentName, &assignment.StartTime, &assignment.EndTime)
+		err = rows.Scan(&assignment.AssignmentId, &assignment.AssignmentName, &assignment.StartTime, &assignment.EndTime, &assignment.CourseName)
 		if err != nil {
 			fmt.Println("Error scanning assignments:", err)
 			return []SentData.AssignmentData{}, err
 		}
+		assignment.CourseCode = courseCode
 		assignments = append(assignments, assignment)
 	}
 	return assignments, nil
@@ -400,4 +401,28 @@ func (m *PostgresRepo) AddAssignment(assignment RecievedData.Assignment) error {
 		return err
 	}
 	return nil
+}
+
+func (m *PostgresRepo) GetAllQuestionsForAssignment(assignmentId string) ([]SentData.Question, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	var questions []SentData.Question
+	query := `SELECT question_id,question_text,max_score,testcases_file 
+			FROM questions where assignment_id=$1
+			`
+	rows, err := m.DB.QueryContext(ctx, query, assignmentId)
+	if err != nil {
+		fmt.Println("Error finding all questions:", err)
+		return []SentData.Question{}, err
+	}
+	for rows.Next() {
+		var question SentData.Question
+		err = rows.Scan(&question.QuestionId, &question.QuestionText, &question.MaxScore, &question.TestCasesFile)
+		if err != nil {
+			fmt.Println("Error scanning all questions:", err)
+			return []SentData.Question{}, err
+		}
+		questions = append(questions, question)
+	}
+	return questions, nil
 }

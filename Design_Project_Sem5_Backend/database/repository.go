@@ -19,4 +19,5 @@ type DatabaseRepo interface {
 	AddCourse(username, courseCode, courseName, batchYear, branch string) error
 	GetAssignmentsForCourse(courseCode string) ([]SentData.AssignmentData, error)
 	AddAssignment(assignment RecievedData.Assignment) error
+	GetAllQuestionsForAssignment(assignmentId string) ([]SentData.Question, error)
 }
