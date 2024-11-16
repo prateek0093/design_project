@@ -7,7 +7,7 @@ const Home = () => {
     <div className="bg-gradient-to-br from-purple-100 to-purple-200 min-h-screen font-sans">
       <div className="container mx-auto px-4 py-8">
         <header className="flex justify-between items-center mb-12">
-          <h1 className="text-3xl font-bold text-purple-600">Leet Code</h1>
+          <h1 className="text-3xl font-bold text-purple-600">Code Lab</h1>
           <nav>
             <ul className="flex space-x-6">
               <li>
