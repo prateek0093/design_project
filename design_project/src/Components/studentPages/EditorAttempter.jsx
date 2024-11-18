@@ -4,10 +4,12 @@ import { BookOpen, AlertCircle } from "lucide-react"; // Added icons
 import Modal from "./_modal.jsx";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
+import {useCookies} from "react-cookie";
 
 const EditorWindow = () => {
   const { testId, courseCode, assignment } = useParams(); // Get additional params
   const navigate = useNavigate(); // Hook for navigation
+  const [cookie] = useCookies(["accessToken"]);
   const [activity, setActivity] = useState("");
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState("");
@@ -19,7 +21,13 @@ const EditorWindow = () => {
     const fetchQuestion = async () => {
       try {
         const response = await axios.get(
-          `${import.meta.env.VITE_BE_URL}/getQuestion/${testId}`
+            `${import.meta.env.VITE_BE_URL}/verified/student/questionText/${testId}`,
+            {
+              headers: {
+                Authorization: `Bearer ${cookie.accessToken}`,
+              },
+              withCredentials: true,
+            }
         );
         if (response.data.success) {
           setQuestionText(response.data.questionText || "Question not found.");
