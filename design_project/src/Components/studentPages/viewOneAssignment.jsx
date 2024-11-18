@@ -25,7 +25,7 @@ export default function AssignmentStudentPage() {
             withCredentials: true,
           }
         );
-
+        console.log(response.data)
         if (response.data.success) {
           setQuestionData(response.data.questions || []);
           setAssignmentName(response.data.assignmentName || "Assignment");
