@@ -30,11 +30,11 @@ const Home = () => {
               </li>
               <li>
                 <button
-                  onClick={() => navigate("/studentDashboard")} //  /signup
+                  onClick={() => navigate("/signup")} //  /signup
                   className="bg-purple-500 text-white px-4 py-2 rounded-full hover:bg-purple-600 transition"
                 >
                   <Link
-                    to="/studentDashboard"
+                    to="/signup"
                     style={{ textDecoration: "none", color: "inherit" }}
                   >
                     Student
