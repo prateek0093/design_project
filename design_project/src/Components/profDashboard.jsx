@@ -1,26 +1,28 @@
-// AllCourses.jsx
 import React, { useState, useEffect } from "react";
 import { PlusCircle, BookOpen, Search } from "lucide-react";
 import CourseCard from "./CourseCard";
 import { useCookies } from "react-cookie";
 import { Link, useNavigate } from "react-router-dom";
+import Header from "./header.jsx"; // Import the Header component
+
 const AllCourses = () => {
   const [courses, setCourses] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [cookies] = useCookies(["accessToken"]);
   const navigate = useNavigate();
+
   useEffect(() => {
     const fetchCourses = async () => {
       try {
         const response = await fetch(
-            import.meta.env.VITE_BE_URL + "/verified/author/dashboard",
-            {
-              method: "GET",
-              headers: {
-                Authorization: `Bearer ${cookies.accessToken}`, // Send the token in the request header
-              },
-              credentials: "include", // Ensures cookies are sent with the request
-            }
+          import.meta.env.VITE_BE_URL + "/verified/author/dashboard",
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${cookies.accessToken}`, // Send the token in the request header
+            },
+            credentials: "include", // Ensures cookies are sent with the request
+          }
         );
 
         if (!response.ok) {
@@ -49,7 +51,10 @@ const AllCourses = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+    <div className="min-h-screen  from-purple-50 via-white to-blue-50">
+      {/* Shared Header */}
+      <Header />
+
       <main className="container mx-auto px-4 py-8">
         {/* Header Section */}
         <header className="flex flex-col gap-6 mb-12">

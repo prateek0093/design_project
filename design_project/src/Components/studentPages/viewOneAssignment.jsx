@@ -10,6 +10,7 @@ export default function AssignmentStudentPage() {
   const [loading, setLoading] = useState(true);
   const [questionData, setQuestionData] = useState([]);
   const [assignmentName, setAssignmentName] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchQuestions = async () => {
@@ -25,7 +26,7 @@ export default function AssignmentStudentPage() {
             withCredentials: true,
           }
         );
-        console.log(response.data)
+        console.log(response.data);
         if (response.data.success) {
           setQuestionData(response.data.questions || []);
           setAssignmentName(response.data.assignmentName || "Assignment");
@@ -45,6 +46,31 @@ export default function AssignmentStudentPage() {
     fetchQuestions();
   }, [courseCode, assignment, cookie.accessToken]);
 
+  const handleSubmitAssignment = async () => {
+    try {
+      const response = await axios.post(
+        `${
+          import.meta.env.VITE_BE_URL
+        }/verified/student/submission/courseAssignments/${courseCode}/${assignment}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${cookie.accessToken}`,
+          },
+          withCredentials: true,
+        }
+      );
+
+      if (response.data.success) {
+        navigate(`/verified/student/courseAssignments/${courseCode}`);
+      } else {
+        console.error("Error submitting assignment:", response.data);
+      }
+    } catch (err) {
+      console.error("Error submitting the assignment:", err);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -56,25 +82,38 @@ export default function AssignmentStudentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg shadow-sm mb-8 p-6">
-          <h1 className="text-2xl font-bold text-purple-600 mb-2">
-            Assignment: {assignmentName}
-          </h1>
-          <p className="text-gray-600">Course Code: {courseCode}</p>
-        </div>
+    <div className="min-h-screen  from-purple-50 via-white to-blue-50">
+      {/* Shared Header */}
+      <Header />
+      <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-lg shadow-sm mb-8 p-6">
+            <h1 className="text-2xl font-bold text-purple-600 mb-2">
+              Assignment: {assignmentName}
+            </h1>
+            <p className="text-gray-600">Course Code: {courseCode}</p>
+          </div>
 
-        <div className="space-y-4">
-          {questionData.length > 0 ? (
-            questionData.map((one, index) => (
-              <Accordion data={one} index={index} key={one.questionId} />
-            ))
-          ) : (
-            <p className="text-gray-500 text-center">
-              No questions available for this assignment.
-            </p>
-          )}
+          <div className="space-y-4">
+            {questionData.length > 0 ? (
+              questionData.map((one, index) => (
+                <Accordion data={one} index={index} key={one.questionId} />
+              ))
+            ) : (
+              <p className="text-gray-500 text-center">
+                No questions available for this assignment.
+              </p>
+            )}
+          </div>
+
+          <div className="mt-8 text-center">
+            <button
+              className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-6 rounded-lg shadow-md transition-colors duration-200"
+              onClick={handleSubmitAssignment}
+            >
+              Submit Assignment
+            </button>
+          </div>
         </div>
       </div>
     </div>
