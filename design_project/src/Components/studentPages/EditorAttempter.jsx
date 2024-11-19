@@ -15,8 +15,8 @@ const EditorWindow = () => {
   const [code, setCode] = useState("");
   const [questionText, setQuestionText] = useState("Loading question...");
   const editorRef = useRef(null);
-  const courseCode = "";
-  const assignmentId = "";
+  let courseCode = "";
+  let assignmentId = "";
 
   // Fetch question text
   useEffect(() => {

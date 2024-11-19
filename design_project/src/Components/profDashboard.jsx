@@ -13,26 +13,31 @@ const AllCourses = () => {
     const fetchCourses = async () => {
       try {
         const response = await fetch(
-          import.meta.env.VITE_BE_URL + "/verified/author/dashboard",
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${cookies.accessToken}`, // Send the token in the request header
-            },
-            credentials: "include", // Ensures cookies are sent with the request
-          }
+            import.meta.env.VITE_BE_URL + "/verified/author/dashboard",
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${cookies.accessToken}`, // Send the token in the request header
+              },
+              credentials: "include", // Ensures cookies are sent with the request
+            }
         );
+
         if (!response.ok) {
           console.error("Failed to fetch courses:", response.statusText);
-          navigate("/");
           return;
         }
+
         const data = await response.json();
-        console.log(data);
-        setCourses(data.courses); // Set only the courses array
+
+        if (data.courses && Array.isArray(data.courses)) {
+          setCourses(data.courses); // Set the courses array if it exists
+        } else {
+          console.warn("No courses available.");
+          setCourses([]); // Set to an empty array if no courses are found
+        }
       } catch (error) {
         console.error("Error fetching courses:", error);
-        navigate("/");
       }
     };
 
