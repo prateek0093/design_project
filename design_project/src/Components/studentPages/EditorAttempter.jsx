@@ -89,11 +89,15 @@ const EditorWindow = () => {
       formData.append("codeFile", file, `${testId}.c`);
 
       const response = await axios.post(
-        `${import.meta.env.VITE_BE_URL}/submitCode/${testId}`,
+        `${import.meta.env.VITE_BE_URL}/verified/student/submitCode/${testId}`,
         formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        }
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+              Authorization: `Bearer ${cookie.accessToken}`,
+            },
+            withCredentials: true,
+          }
       );
 
       if (response.data.success) {
