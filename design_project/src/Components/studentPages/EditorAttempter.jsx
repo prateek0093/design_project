@@ -4,10 +4,10 @@ import { BookOpen, AlertCircle } from "lucide-react"; // Added icons
 import Modal from "./_modal.jsx";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import {useCookies} from "react-cookie";
+import { useCookies } from "react-cookie";
 
 const EditorWindow = () => {
-  const { testId, courseCode, assignment } = useParams(); // Get additional params
+  const { testId } = useParams(); // Get additional params
   const navigate = useNavigate(); // Hook for navigation
   const [cookie] = useCookies(["accessToken"]);
   const [activity, setActivity] = useState("");
@@ -15,21 +15,27 @@ const EditorWindow = () => {
   const [code, setCode] = useState("");
   const [questionText, setQuestionText] = useState("Loading question...");
   const editorRef = useRef(null);
+  const courseCode = "";
+  const assignmentId = "";
 
   // Fetch question text
   useEffect(() => {
     const fetchQuestion = async () => {
       try {
         const response = await axios.get(
-            `${import.meta.env.VITE_BE_URL}/verified/student/questionText/${testId}`,
-            {
-              headers: {
-                Authorization: `Bearer ${cookie.accessToken}`,
-              },
-              withCredentials: true,
-            }
+          `${
+            import.meta.env.VITE_BE_URL
+          }/verified/student/questionText/${testId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${cookie.accessToken}`,
+            },
+            withCredentials: true,
+          }
         );
         if (response.data.success) {
+          courseCode = response.data.courseCode;
+          assignmentId = response.data.assignmentId;
           setQuestionText(response.data.questionText || "Question not found.");
         } else {
           setQuestionText("Failed to load question.");
@@ -91,18 +97,18 @@ const EditorWindow = () => {
       const response = await axios.post(
         `${import.meta.env.VITE_BE_URL}/verified/student/submitCode/${testId}`,
         formData,
-          {
-            headers: {
-              "Content-Type": "multipart/form-data",
-              Authorization: `Bearer ${cookie.accessToken}`,
-            },
-            withCredentials: true,
-          }
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${cookie.accessToken}`,
+          },
+          withCredentials: true,
+        }
       );
 
       if (response.data.success) {
         alert("Code submitted successfully!");
-        navigate(`/enrolled/${courseCode}/${assignment}`); // Redirect after success
+        navigate(`/enrolled/${courseCode}/${assignmentId}`); // Redirect after success
       } else {
         alert("Failed to submit code.");
       }
