@@ -9,11 +9,21 @@ const Submission = () => {
   const [sortConfig, setSortConfig] = useState({ key: 'rollId', direction: 'asc' });
 
   useEffect(() => {
+    // Mock data
+    const mockData = [
+      { id: 1, rollId: '123', name: 'John Doe', totalMarks: 85 },
+      { id: 2, rollId: '124', name: 'Jane Smith', totalMarks: 92 },
+      { id: 3, rollId: '125', name: 'Alice Brown', totalMarks: 78 },
+      { id: 4, rollId: '126', name: 'Bob White', totalMarks: 88 },
+      { id: 5, rollId: '127', name: 'Charlie Green', totalMarks: 95 },
+    ];
+
     const fetchResults = async () => {
       try {
         setLoading(true);
-        const response = await axios.get('/api/results');
-        setResults(response.data);
+        // Simulate an API call with mock data
+        // const response = await axios.get('/api/results'); // Replace this with mock data
+        setResults(mockData);
         setError(null);
       } catch (err) {
         setError('Failed to fetch results. Please try again later.');
