@@ -18,7 +18,7 @@ const EditorWindow = () => {
   const [courseCode, setCourseCode] = useState("");
   const [assignmentId, setAssignmentId] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false); // Track submission status
-
+  const [ isLoading, setLoading ] = useState(false);
   // Fetch question text
   useEffect(() => {
     const fetchQuestion = async () => {
@@ -34,10 +34,16 @@ const EditorWindow = () => {
             withCredentials: true,
           }
         );
+        //do changes according to this
+        console.log(response)
+
         if (response.data.success) {
           setCourseCode(response.data.courseCode); // Update state
           setAssignmentId(response.data.assignmentId); // Update state
           setQuestionText(response.data.questionText || "Question not found.");
+          if(response.data.status){
+            navigate(-1);
+          }
         } else {
           setQuestionText("Failed to load question.");
         }
@@ -167,8 +173,11 @@ const EditorWindow = () => {
                 ? "bg-gray-500 text-gray-300 cursor-not-allowed"
                 : "bg-purple-600 text-white hover:bg-purple-700 focus:ring-purple-500"
             }`}
-            onClick={handleSubmit}
-            disabled={isSubmitted} // Disable button if already submitted
+            onClick={()=>{
+              setLoading(true);
+              handleSubmit().then(()=>setLoading(false));
+            }}
+            disabled={isSubmitted || isLoading } // Disable button if already submitted
           >
             {isSubmitted ? "Submitted" : "Submit Code"}
           </button>

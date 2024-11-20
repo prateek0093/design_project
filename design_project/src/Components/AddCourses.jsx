@@ -22,9 +22,7 @@ const AddCourse = () => {
       !courseName.trim() ||
       !courseCode.trim() ||
       !branch.trim() ||
-      !batchYear.trim() ||
-      !startTime.trim() ||
-      !endTime.trim()
+      !batchYear.trim()
     ) {
       setError("Please fill in all the fields.");
       return;
@@ -39,8 +37,6 @@ const AddCourse = () => {
         courseCode,
         branch,
         batchYear,
-        startTime,
-        endTime,
       };
 
       const response = await axios.post(
@@ -53,15 +49,13 @@ const AddCourse = () => {
           withCredentials: true,
         }
       );
-        console.log("h",response.data,"ji")
+
       if (response.data && response.data.success) {
         // Clear the form
         setCourseName("");
         setCourseCode("");
         setBranch("");
         setBatchYear("");
-        setStartTime("");
-        setEndTime("");
 
         alert("Course added successfully!");
         navigate("/profDashboard"); // Redirect to /profDashboard
@@ -136,37 +130,13 @@ const AddCourse = () => {
 
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Batch Year
+                Batch Year (If you are assigning this course to batch 2024 write batch 2024 below)
               </label>
               <input
                 type="number"
                 value={batchYear}
                 onChange={(e) => setBatchYear(e.target.value)}
-                placeholder="Enter batch year"
-                className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-200 focus:border-purple-500 transition-all duration-200"
-              />
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Start Time
-              </label>
-              <input
-                type="datetime-local"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-200 focus:border-purple-500 transition-all duration-200"
-              />
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                End Time
-              </label>
-              <input
-                type="datetime-local"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
+                placeholder="2024"
                 className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-200 focus:border-purple-500 transition-all duration-200"
               />
             </div>

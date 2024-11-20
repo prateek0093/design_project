@@ -62,8 +62,7 @@ const Dashboard = () => {
   const navItems = [
     { text: "Dashboard" },
     { text: "Assignments" },
-    { text: "Courses" },
-    { text: "Dark mode" },
+    { text: "Submitted Assignment" },
   ];
 
   const handleCourseClick = (courseCode) => {
@@ -120,24 +119,7 @@ const Dashboard = () => {
               {isSidebarOpen ? <X size={16} /> : <Menu size={16} />}
             </button>
 
-            <div className="p-5 flex items-center">
-              {isSidebarOpen ? (
-                  <Link
-                      to="/studentDashboard"
-                      className="flex items-center space-x-2"
-                  >
-                    <span className="text-2xl font-bold text-purple-600">Code</span>
-                    <span className="text-2xl font-bold text-purple-600">Lab</span>
-                  </Link>
-              ) : (
-                  <Link
-                      to="/studentDashboard"
-                      className="text-2xl font-bold text-purple-600"
-                  >
-                    CL
-                  </Link>
-              )}
-            </div>
+
 
             <div className="mt-10 space-y-2 px-3">
               {navItems.map((item, idx) => (

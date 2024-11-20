@@ -89,22 +89,6 @@ const CodeLab = () => {
           <ul className="flex space-x-6">
             <li>
               <Link
-                to="/practice"
-                className="text-gray-600 hover:text-purple-600"
-              >
-                Practice
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/explore"
-                className="text-gray-600 hover:text-purple-600"
-              >
-                Explore
-              </Link>
-            </li>
-            <li>
-              <Link
                 to="/authorLogin"
                 className="text-gray-600 hover:text-purple-600"
               >
@@ -113,7 +97,7 @@ const CodeLab = () => {
             </li>
             <li>
               <button
-                onClick={() => navigate("/signup")}
+                onClick={() => navigate("/login")}
                 className="bg-purple-500 text-white px-4 py-2 rounded-full hover:bg-purple-600 transition"
               >
                 Student

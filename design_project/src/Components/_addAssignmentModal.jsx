@@ -38,6 +38,7 @@ export default function AddAssignmentModal({ setter }) {
     try {
       // Construct a FormData object
       const formDataToSend = new FormData();
+      // console.log(formData.startTime);console.log(formData.endTime);
       formDataToSend.append("assignmentName", formData.assignmentName);
       formDataToSend.append("startTime", formData.startTime);
       formDataToSend.append("endTime", formData.endTime);
@@ -109,7 +110,8 @@ export default function AddAssignmentModal({ setter }) {
       return (
           formData.assignmentName &&
           formData.startTime &&
-          formData.endTime
+          formData.endTime &&
+          new Date(formData.endTime) > new Date(formData.startTime)
       );
     } else if (state === 1) {
       return formData.questions.every((q) => q.ques && q.maximumMarks);
@@ -121,7 +123,7 @@ export default function AddAssignmentModal({ setter }) {
     if (validateFields()) {
       setState((prev) => Math.min(prev + 1, 2));
     } else {
-      alert("Please fill in all required fields before proceeding.");
+      alert("Please fill in all required fields and ensure end time is after start time.");
     }
   };
 
@@ -151,23 +153,25 @@ export default function AddAssignmentModal({ setter }) {
                       className="w-full p-2 border rounded-lg"
                   />
 
-                  <h2>Start Date:</h2>
+                  <h2>Start Date and Time:</h2>
                   <input
-                      type="date"
+                      type="datetime-local"
                       value={formData.startTime || ""}
                       onChange={(e) =>
-                          setFormData({ ...formData, startTime: e.target.value })
+                          setFormData({...formData, startTime: e.target.value, endTime: ""})
                       }
                       className="w-[400px] p-2 border rounded-lg"
                   />
 
-                  <h2>End Date:</h2>
+                  <h2>End Date and Time:</h2>
                   <input
-                      type="date"
+                      type="datetime-local"
                       value={formData.endTime || ""}
+                      min={formData.startTime || undefined}
                       onChange={(e) =>
-                          setFormData({ ...formData, endTime: e.target.value })
+                          setFormData({...formData, endTime: e.target.value})
                       }
+                      disabled={!formData.startTime}
                       className="w-[400px] p-2 border rounded-lg"
                   />
                 </div>

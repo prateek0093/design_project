@@ -84,8 +84,8 @@ const StudentLogin = () => {
       <header className="w-full bg-white p-4">
         <div className="container mx-auto flex justify-between items-center">
           <div className="text-2xl font-bold">
-            <span className="text-purple-500">Leet</span>
-            <span className="text-gray-700">Code</span>
+            <span className="text-purple-500">Code</span>
+            <span className="text-gray-700">LAB</span>
           </div>
           <nav className="space-x-4">
             {/* <button className="text-gray-600 hover:text-gray-800">
@@ -170,10 +170,13 @@ const StudentLogin = () => {
               </button>
             </form>
 
-            <div className="mt-4 flex justify-between items-center text-sm">
-              <a href="#" className="text-gray-600 hover:text-gray-800">
-                Forget Password?
-              </a>
+            <div className="flex justify-between items-center text-xs my-6">
+              <p
+                  onClick={() => navigate("/signup")}
+                  className="text-xl text-purple-600 font-semibold hover:cursor-pointer"
+              >
+                Sign Up
+              </p>
             </div>
           </div>
         </div>

@@ -44,7 +44,7 @@ const AuthorLogin = () => {
     if (import.meta.env.VITE_BE_DEVSTAGE === "DEV" || validateForm()) {
       try {
         const response = await axios.post(
-          `${import.meta.env.VITE_BE_URL}/login`,
+          `${import.meta.env.VITE_BE_URL}/authLogin`,
           formData,
           {
             withCredentials: true,
@@ -88,7 +88,7 @@ const AuthorLogin = () => {
             >
               Author
             </Link>
-            <Link to="/signup" className="text-blue-500 hover:text-blue-600">
+            <Link to="/login" className="text-blue-500 hover:text-blue-600">
               Student
             </Link>
           </nav>
