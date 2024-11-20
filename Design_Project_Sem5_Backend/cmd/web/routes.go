@@ -35,6 +35,7 @@ func routes() http.Handler {
 	})
 	mux.Post("/login", handlers.Repo.Login)
 	mux.Post("/signUp", handlers.Repo.SignUp)
+	mux.Post("/logout", handlers.Repo.Logout)
 	mux.Post("/otpVerification", handlers.Repo.OtpVerification)
 	mux.Route("/verified", func(mux chi.Router) {
 		mux.Use(AuthMiddleware)
@@ -48,7 +49,9 @@ func routes() http.Handler {
 			mux.With(RoleMiddleware("student")).Get("/dashboard", handlers.Repo.StudentDashboard)
 			mux.With(RoleMiddleware("student")).Get("/courseAssignments/{id}", handlers.Repo.AllAssignmentForCourse)
 			mux.With(RoleMiddleware("student")).Get("/assignmentQuestions/{courseId}/{assignmentId}", handlers.Repo.AllQuestionsForAssignment)
-
+			mux.With(RoleMiddleware("student")).Get("/questionText/{questionId}", handlers.Repo.SendQuestionDetailsForEditor)
+			mux.With(RoleMiddleware("student")).Post("/submitCode/{questionId}", handlers.Repo.StudentSubmission)
+			mux.With(RoleMiddleware("student")).Post("/submitAssignment/{assignmentId}", handlers.Repo.SubmitAssignment)
 		})
 	})
 

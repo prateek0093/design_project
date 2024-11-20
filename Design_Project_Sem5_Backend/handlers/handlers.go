@@ -238,6 +238,33 @@ func (m *Repository) OtpVerification(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (m *Repository) Logout(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5174")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Content-Type", "application/json")
+
+	// Clear the access token cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "accessToken",
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Unix(0, 0),
+		HttpOnly: false,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
+	})
+
+	response := make(map[string]interface{})
+	response["success"] = true
+	response["message"] = "Logged out successfully"
+
+	w.WriteHeader(http.StatusOK)
+	err := json.NewEncoder(w).Encode(response)
+	if err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		fmt.Println("Error encoding response:", err)
+	}
+}
 func (m *Repository) StudentDashboard(w http.ResponseWriter, r *http.Request) {
 	username := r.Context().Value("username").(string)
 	fmt.Println(username)
@@ -332,9 +359,10 @@ func (m *Repository) AddCourse(w http.ResponseWriter, r *http.Request) {
 }
 
 func (m *Repository) AllAssignmentForCourse(w http.ResponseWriter, r *http.Request) {
+	username := r.Context().Value("username").(string)
 	courseCode := chi.URLParam(r, "id")
 	fmt.Println("CourseCode:", courseCode)
-	assignments, err := m.DB.GetAssignmentsForCourse(courseCode)
+	assignments, err := m.DB.GetAssignmentsForCourse(username, courseCode)
 	if errors.Is(err, errors.New("no assignments assigned")) {
 		fmt.Println(err)
 		http.Error(w, "no assignments assigned", http.StatusBadRequest)
@@ -490,14 +518,16 @@ func (m *Repository) AddAssignment(w http.ResponseWriter, r *http.Request) {
 func (m *Repository) AllQuestionsForAssignment(w http.ResponseWriter, r *http.Request) {
 	courseCode := chi.URLParam(r, "courseId")
 	assignmentId := chi.URLParam(r, "assignmentId")
+	username := r.Context().Value("username").(string)
 	fmt.Println("assignmentId:", assignmentId)
 	fmt.Println("courseCode:", courseCode)
-	questions, err := m.DB.GetAllQuestionsForAssignment(assignmentId)
+	questions, err := m.DB.GetAllQuestionsForAssignment(assignmentId, username)
 	if err != nil {
 		fmt.Println(err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
+	fmt.Println("questions:", questions)
 	response := map[string]interface{}{
 		"success":   true,
 		"questions": questions,
@@ -508,4 +538,123 @@ func (m *Repository) AllQuestionsForAssignment(w http.ResponseWriter, r *http.Re
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+}
+
+func (m *Repository) StudentSubmission(w http.ResponseWriter, r *http.Request) {
+	if err := godotenv.Load(); err != nil {
+		fmt.Println("Error loading environment variables:", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	username := r.Context().Value("username").(string)
+	questionId := chi.URLParam(r, "questionId")
+	err := r.ParseMultipartForm(10 << 20)
+	if err != nil {
+		fmt.Println("Error in parsing multipart form:", err)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+	cfile, cfileExists := r.MultipartForm.File["codeFile"]
+	if !cfileExists || len(cfile) == 0 {
+		http.Error(w, fmt.Sprintf("Code file for question is missing"), http.StatusBadRequest)
+		return
+	}
+	codeFile, err := cfile[0].Open()
+	if err != nil {
+		http.Error(w, "Error opening code file", http.StatusInternalServerError)
+		fmt.Println(err)
+		return
+	}
+	codeFileContent, err := io.ReadAll(codeFile)
+	if err != nil {
+		http.Error(w, "Error reading code file", http.StatusInternalServerError)
+		fmt.Println(err)
+		return
+	}
+	//fmt.Println("cFile:", string(codeFileContent))
+	testCasesFile, err := m.DB.GetTestCasesFromQuestionId(questionId)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	//fmt.Println("testCasesFile:", string(testCasesFile))
+
+	pass, errString := helpers.ValidateCodeAgainstTestCases(string(codeFileContent), testCasesFile, os.Getenv("JUDGE0_URL"))
+	err = m.DB.AddSubmission(username, questionId, codeFileContent)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	marks := 0
+	if !pass {
+		fmt.Println("Error in submitting question:", errString)
+		marks = 0
+	} else {
+		marks = 100
+	}
+	err = m.DB.SubmitQuestion(marks, username, questionId)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(pass, errString)
+	response := map[string]interface{}{
+		"success": true,
+	}
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		fmt.Println("Error encoding json", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+func (m *Repository) SendQuestionDetailsForEditor(w http.ResponseWriter, r *http.Request) {
+	questionId := chi.URLParam(r, "questionId")
+	//fmt.Println(questionId)
+	questionText, err := m.DB.GetQuestionTextFromId(questionId)
+	if err != nil {
+		fmt.Println("Error getting question text", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	courseCode, assignmentId, err := m.DB.GetCourseCodeAndAssignmentIdFromQuestionId(questionId)
+	if err != nil {
+		fmt.Println("Error getting course code and assignment id", err)
+		return
+	}
+	response := map[string]interface{}{
+		"success":      true,
+		"questionText": questionText,
+		"courseCode":   courseCode,
+		"assignmentId": assignmentId,
+	}
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		fmt.Println("Error encoding json", err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+}
+
+func (m *Repository) SubmitAssignment(w http.ResponseWriter, r *http.Request) {
+	username := r.Context().Value("username").(string)
+	assignmentId := chi.URLParam(r, "assignmentId")
+	err := m.DB.SubmitAssignment(assignmentId, username)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		fmt.Println("Error submitting assignment", err)
+		return
+	}
+	response := map[string]interface{}{
+		"success": true,
+	}
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		fmt.Println("Error encoding json", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	//w.WriteHeader(http.StatusOK)
+	//w.Write([]byte("Assignment submitted successfully"))
 }
