@@ -15,8 +15,9 @@ const EditorWindow = () => {
   const [code, setCode] = useState("");
   const [questionText, setQuestionText] = useState("Loading question...");
   const editorRef = useRef(null);
-  let courseCode = "";
-  let assignmentId = "";
+  const [courseCode, setCourseCode] = useState("");
+  const [assignmentId, setAssignmentId] = useState("");
+  const [isSubmitted, setIsSubmitted] = useState(false); // Track submission status
 
   // Fetch question text
   useEffect(() => {
@@ -34,8 +35,8 @@ const EditorWindow = () => {
           }
         );
         if (response.data.success) {
-          courseCode = response.data.courseCode;
-          assignmentId = response.data.assignmentId;
+          setCourseCode(response.data.courseCode); // Update state
+          setAssignmentId(response.data.assignmentId); // Update state
           setQuestionText(response.data.questionText || "Question not found.");
         } else {
           setQuestionText("Failed to load question.");
@@ -89,6 +90,11 @@ const EditorWindow = () => {
 
   // Handle submit
   const handleSubmit = async () => {
+    if (isSubmitted) {
+      alert("You have already submitted your code.");
+      return;
+    }
+
     try {
       const file = new Blob([code], { type: "text/plain" });
       const formData = new FormData();
@@ -108,6 +114,7 @@ const EditorWindow = () => {
 
       if (response.data.success) {
         alert("Code submitted successfully!");
+        setIsSubmitted(true); // Mark submission as complete
         navigate(`/enrolled/${courseCode}/${assignmentId}`); // Redirect after success
       } else {
         alert("Failed to submit code.");
@@ -155,10 +162,15 @@ const EditorWindow = () => {
         {/* Submit Button */}
         <div className="mt-6 text-right">
           <button
-            className="inline-flex items-center px-6 py-3 bg-purple-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition"
+            className={`inline-flex items-center px-6 py-3 text-base font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition ${
+              isSubmitted
+                ? "bg-gray-500 text-gray-300 cursor-not-allowed"
+                : "bg-purple-600 text-white hover:bg-purple-700 focus:ring-purple-500"
+            }`}
             onClick={handleSubmit}
+            disabled={isSubmitted} // Disable button if already submitted
           >
-            Submit Code
+            {isSubmitted ? "Submitted" : "Submit Code"}
           </button>
         </div>
 

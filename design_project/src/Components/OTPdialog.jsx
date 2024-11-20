@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { X } from "lucide-react";
 
-const OTPDialog = ({ isOpen, onClose ,onSubmit}) => {
+const OTPDialog = ({ isOpen, onClose, onSubmit }) => {
   const [otp, setOtp] = useState(Array(6).fill(""));
   const inputRefs = useRef([]);
 

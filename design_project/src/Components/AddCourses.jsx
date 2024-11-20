@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useCookies } from "react-cookie";
 import { PlusCircle, Loader2, Save } from "lucide-react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom"; // Import useNavigate
 
 const AddCourse = () => {
   const [courseName, setCourseName] = useState("");
@@ -13,6 +14,7 @@ const AddCourse = () => {
   const [loading, setLoading] = useState(false);
   const [cookies] = useCookies(["accessToken"]);
   const [error, setError] = useState(null);
+  const navigate = useNavigate(); // Initialize navigate
 
   const handleSubmit = async () => {
     if (
@@ -40,7 +42,7 @@ const AddCourse = () => {
         endTime,
       };
 
-      await axios.post(
+      const response = await axios.post(
         import.meta.env.VITE_BE_URL + "/verified/author/addCourse",
         payload,
         {
@@ -51,13 +53,20 @@ const AddCourse = () => {
         }
       );
 
-      setCourseName("");
-      setCourseCode("");
-      setBranch("");
-      setBatchYear("");
-      setStartTime("");
-      setEndTime("");
-      alert("Course added successfully!");
+      if (response.data.success) {
+        // Clear the form
+        setCourseName("");
+        setCourseCode("");
+        setBranch("");
+        setBatchYear("");
+        setStartTime("");
+        setEndTime("");
+
+        alert("Course added successfully!");
+        navigate("/profDashboard"); // Redirect to /profDashboard
+      } else {
+        setError("Failed to add course. Please try again.");
+      }
     } catch (err) {
       setError("Failed to add course. Please try again.");
       console.error("Error adding course:", err);
@@ -67,7 +76,7 @@ const AddCourse = () => {
   };
 
   return (
-    <div className="min-h-screen  from-purple-50 via-white to-blue-50">
+    <div className="min-h-screen from-purple-50 via-white to-blue-50">
       {/* Shared Header */}
       <Header />
       <div className="min-h-screen bg-gray-50">
