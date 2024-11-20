@@ -1,6 +1,7 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import axios from "axios";
+import Header from "../header.jsx";
 import { ChevronDown, ChevronUp, Award } from "lucide-react";
 import { useCookies } from "react-cookie";
 
@@ -51,7 +52,7 @@ export default function AssignmentStudentPage() {
       const response = await axios.post(
         `${
           import.meta.env.VITE_BE_URL
-        }/verified/student/submission/courseAssignments/${courseCode}/${assignment}`,
+        }/verified/student/submitAssignment/${assignment}`,
         {},
         {
           headers: {
@@ -62,7 +63,7 @@ export default function AssignmentStudentPage() {
       );
 
       if (response.data.success) {
-        navigate(`/verified/student/courseAssignments/${courseCode}`);
+        navigate(`/enrolled/${courseCode}`);
       } else {
         console.error("Error submitting assignment:", response.data);
       }
