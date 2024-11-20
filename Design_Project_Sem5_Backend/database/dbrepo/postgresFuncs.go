@@ -7,7 +7,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
+	"log"
 	"time"
 )
 
@@ -182,6 +184,7 @@ func (m *PostgresRepo) Get3RecentAssignments(name string) ([]SentData.Assignment
 		c.course_code,
 		c.course_name,
 		a.assignment_name,
+		a.assignment_id,
 		a.start_time AS assignment_start_time
 	FROM 
 		users AS u
@@ -208,7 +211,7 @@ func (m *PostgresRepo) Get3RecentAssignments(name string) ([]SentData.Assignment
 	}
 	for rows.Next() {
 		var assignmentData SentData.AssignmentData
-		err = rows.Scan(&assignmentData.CourseCode, &assignmentData.CourseName, &assignmentData.AssignmentName, &assignmentData.StartTime)
+		err = rows.Scan(&assignmentData.CourseCode, &assignmentData.CourseName, &assignmentData.AssignmentName, &assignmentData.AssignmentId, &assignmentData.StartTime)
 		if err != nil {
 			fmt.Println("Error scanning assignments:", err)
 			return []SentData.AssignmentData{}, err
@@ -256,73 +259,157 @@ func (m *PostgresRepo) GetAllCoursesForAuthor(name string) ([]SentData.CourseDat
 }
 
 func (m *PostgresRepo) AddCourse(username, courseCode, courseName, batchYear, branch string) error {
-	tx, err := m.DB.Begin()
-	if err != nil {
-		fmt.Println("Error creating course:", err)
-		return err
+	maxRetries := 3
+	var lastErr error
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			log.Printf("Retrying operation (attempt %d/%d)", attempt+1, maxRetries)
+			time.Sleep(time.Second * time.Duration(attempt)) // Exponential backoff
+		}
+
+		err := m.executeAddCourse(username, courseCode, courseName, batchYear, branch)
+		if err == nil {
+			return nil
+		}
+
+		lastErr = err
+		if err == sql.ErrConnDone || err.Error() == "driver: bad connection" {
+			log.Printf("Connection error detected, attempting to reconnect: %v", err)
+			if err := m.reconnectDB(); err != nil {
+				log.Printf("Failed to reconnect: %v", err)
+				continue
+			}
+		} else {
+			// If it's not a connection error, don't retry
+			return err
+		}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+
+	return fmt.Errorf("failed after %d attempts, last error: %v", maxRetries, lastErr)
+}
+
+func (m *PostgresRepo) reconnectDB() error {
+	if m.DB != nil {
+		_ = m.DB.Close() // Best effort close
+	}
+
+	// Assuming you have access to the DSN or connection parameters
+	db, err := sql.Open("pgx", "host=localhost port=5432 dbname=DesignProject user=yash password=123 connect_timeout=10")
+	if err != nil {
+		return fmt.Errorf("failed to open new connection: %v", err)
+	}
+
+	// Test the connection
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	query := `INSERT INTO courses (course_id, author_id, course_code, course_name, created_at,updated_at)
-        VALUES (
-            gen_random_uuid(),
-            (SELECT user_id FROM users WHERE username = $1),
-            $2,
-            $3,
-            CURRENT_TIMESTAMP,
-            CURRENT_TIMESTAMP
-        );`
-	_, err = tx.ExecContext(ctx, query, username, courseCode, courseName)
-	if err != nil {
-		fmt.Println("Error adding course:", err)
-		return err
+
+	if err := db.PingContext(ctx); err != nil {
+		db.Close()
+		return fmt.Errorf("failed to ping new connection: %v", err)
 	}
-	branchCode := "51"
-	if branch == "IT" {
-		branchCode = "52"
-	} else if branch == "BOTH" {
-		branchCode = ""
-	}
-	emailPattern := fmt.Sprintf("%s%s%%", batchYear, branchCode)
-	query = `SELECT user_id from users where email LIKE $1`
-	rows, err := tx.QueryContext(ctx, query, emailPattern)
-	if err != nil {
-		fmt.Println("Error adding course:", err)
-		err1 := tx.Rollback()
-		if err1 != nil {
-			fmt.Println("Error adding course", err1)
-			return err
-		}
-		return err
-	}
-	for rows.Next() {
-		var userId int
-		err = rows.Scan(&userId)
-		if err != nil {
-			fmt.Println("Error scanning course:", err)
-			err1 := tx.Rollback()
-			if err1 != nil {
-				fmt.Println("Error scanning course:", err1)
-				return err1
-			}
-			return err
-		}
-		query1 := `INSERT INTO enrollments (course_id, user_id, enrollment_date) VALUES (SELECT course_id from courses where courseCode=$1,$2,CURRENT_TIMESTAMP)`
-		_, err = tx.ExecContext(ctx, query1, courseCode, userId)
-		if err != nil {
-			fmt.Println("Error adding enrollment:", err)
-			err1 := tx.Rollback()
-			if err1 != nil {
-				fmt.Println("Error adding enrollment:", err1)
-				return err1
-			}
-			return err
-		}
-	}
+
+	m.DB = db
 	return nil
 }
 
-func (m *PostgresRepo) GetAssignmentsForCourse(courseCode string) ([]SentData.AssignmentData, error) {
+func (m *PostgresRepo) executeAddCourse(username, courseCode, courseName, batchYear, branch string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	// Start transaction
+	tx, err := m.DB.BeginTx(ctx, &sql.TxOptions{
+		Isolation: sql.LevelSerializable,
+		ReadOnly:  false,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
+	// Improved defer for transaction handling
+	defer func() {
+		if p := recover(); p != nil {
+			_ = tx.Rollback()
+			panic(p)
+		}
+	}()
+
+	// Insert course
+	log.Printf("Inserting course: %s %s %s %s", courseName, courseCode, batchYear, branch)
+	query := `
+        INSERT INTO courses (course_id, author_id, course_code, course_name, created_at, updated_at)
+        VALUES (gen_random_uuid(),
+                (SELECT user_id FROM users WHERE username = $1), $2, $3,
+                CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING course_id`
+
+	var courseID string
+	err = tx.QueryRowContext(ctx, query, username, courseCode, courseName).Scan(&courseID)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to insert course: %w", err)
+	}
+
+	// Determine branch code
+	branchCode := "51" // Default for CSE
+	switch branch {
+	case "IT":
+		branchCode = "52"
+	case "BOTH":
+		branchCode = ""
+	}
+
+	// Handle enrollments
+	emailPattern := fmt.Sprintf("%s%s%%", batchYear, branchCode)
+	log.Printf("Finding users for enrollment with pattern: %s", emailPattern)
+
+	query = `SELECT user_id FROM users WHERE email LIKE $1`
+	rows, err := tx.QueryContext(ctx, query, emailPattern)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to query users: %w", err)
+	}
+	defer rows.Close()
+
+	// Batch insert enrollments
+	var userIDs []string
+	for rows.Next() {
+		var userID string
+		if err = rows.Scan(&userID); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to scan user ID: %w", err)
+		}
+		userIDs = append(userIDs, userID)
+	}
+
+	if err = rows.Err(); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	// Batch insert enrollments if we have users
+	if len(userIDs) > 0 {
+		enrollmentQuery := `
+            INSERT INTO enrollments (course_id, student_id, enrollment_date)
+            SELECT $1, unnest($2::uuid[]), CURRENT_TIMESTAMP`
+
+		_, err = tx.ExecContext(ctx, enrollmentQuery, courseID, pq.Array(userIDs))
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to insert enrollments: %w", err)
+		}
+	}
+
+	// Commit transaction
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	log.Printf("Successfully added course and enrolled %d users", len(userIDs))
+	return nil
+}
+
+func (m *PostgresRepo) GetAssignmentsForCourse(username, courseCode string) ([]SentData.AssignmentData, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
@@ -352,6 +439,23 @@ func (m *PostgresRepo) GetAssignmentsForCourse(courseCode string) ([]SentData.As
 		}
 		assignment.CourseCode = courseCode
 		assignments = append(assignments, assignment)
+	}
+
+	// Query for checking submission status
+	query = `SELECT COUNT(1)
+             FROM assignment_grades
+             WHERE assignment_id = $1 AND student_id=(SELECT user_id from users where username = $2)`
+
+	for i := range assignments {
+		assignment := assignments[i]
+		var temp int
+		row := m.DB.QueryRowContext(ctx, query, assignment.AssignmentId, username)
+		err = row.Scan(&temp)
+		if err != nil {
+			fmt.Println("Error checking submission status:", err)
+			return []SentData.AssignmentData{}, err
+		}
+		assignments[i].Submitted = temp == 1
 	}
 	return assignments, nil
 }
@@ -403,26 +507,199 @@ func (m *PostgresRepo) AddAssignment(assignment RecievedData.Assignment) error {
 	return nil
 }
 
-func (m *PostgresRepo) GetAllQuestionsForAssignment(assignmentId string) ([]SentData.Question, error) {
+func (m *PostgresRepo) GetAllQuestionsForAssignment(assignmentId, username string) ([]SentData.StudentAssignmentDetails, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	var questions []SentData.Question
-	query := `SELECT question_id,question_text,max_score,testcases_file 
-			FROM questions where assignment_id=$1
-			`
+	var questions []SentData.StudentAssignmentDetails
+
+	// Updated query with table aliases
+	query := `SELECT q.question_id, q.max_score, a.assignment_name 
+              FROM questions AS q 
+              JOIN assignments AS a ON a.assignment_id = q.assignment_id
+              WHERE q.assignment_id = $1`
+
 	rows, err := m.DB.QueryContext(ctx, query, assignmentId)
 	if err != nil {
 		fmt.Println("Error finding all questions:", err)
-		return []SentData.Question{}, err
+		return []SentData.StudentAssignmentDetails{}, err
 	}
+	defer rows.Close() // Ensure the rows are closed after use
+
 	for rows.Next() {
-		var question SentData.Question
-		err = rows.Scan(&question.QuestionId, &question.QuestionText, &question.MaxScore, &question.TestCasesFile)
+		var question SentData.StudentAssignmentDetails
+		err = rows.Scan(&question.QuestionId, &question.MaxScore, &question.AssignmentName) // Include all selected columns
 		if err != nil {
 			fmt.Println("Error scanning all questions:", err)
-			return []SentData.Question{}, err
+			return []SentData.StudentAssignmentDetails{}, err
 		}
 		questions = append(questions, question)
 	}
+
+	// Query for checking submission status
+	query = `SELECT COUNT(1)
+             FROM submissions
+             WHERE assignment_id = $1 AND question_id = $2 AND student_id=(SELECT user_id from users where username = $3)`
+
+	for i := range questions {
+		var temp int
+		row := m.DB.QueryRowContext(ctx, query, assignmentId, questions[i].QuestionId, username)
+		err = row.Scan(&temp)
+		if err != nil {
+			fmt.Println("Error checking submission status:", err)
+			return []SentData.StudentAssignmentDetails{}, err
+		}
+		questions[i].QuestionStatus = temp == 1
+	}
+
 	return questions, nil
+}
+
+func (m *PostgresRepo) GetQuestionTextFromId(questionId string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	var questionText string
+	query := `SELECT question_text FROM questions where question_id = $1`
+	row := m.DB.QueryRowContext(ctx, query, questionId)
+	err := row.Scan(&questionText)
+	if err != nil {
+		return "", err
+	}
+	return questionText, nil
+}
+
+func (m *PostgresRepo) GetTestCasesFromQuestionId(questionId string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	var testCases []byte
+	query := `SELECT testcases_file from questions where question_id = $1`
+	row := m.DB.QueryRowContext(ctx, query, questionId)
+	err := row.Scan(&testCases)
+	if err != nil {
+		fmt.Println("Error getting test cases from database:", err)
+		return nil, err
+	}
+	return testCases, nil
+}
+
+func (m *PostgresRepo) AddSubmission(username, questionId string, codeFile []byte) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	query := `
+		INSERT INTO submissions 
+		(student_id, assignment_id, question_id, submitted_at, is_submitted, submitted_code)
+		VALUES (
+			(SELECT user_id FROM users WHERE username = $1),
+			(SELECT assignment_id FROM questions WHERE question_id = $2),
+			$2, CURRENT_TIMESTAMP, $3, $4
+		);
+	`
+
+	_, err := m.DB.ExecContext(ctx, query, username, questionId, true, codeFile)
+	if err != nil {
+		return fmt.Errorf("error adding submission: %w", err)
+	}
+
+	return nil
+}
+
+func (m *PostgresRepo) SubmitQuestion(marks int, username, questionId string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	query := `
+		INSERT INTO student_marks 
+		(submission_id, user_id, marks, graded_at, comments) 
+		VALUES (
+			(SELECT submission_id FROM submissions 
+			 WHERE question_id = $1 
+			 AND student_id = (SELECT user_id FROM users WHERE username = $2)),
+			(SELECT user_id FROM users WHERE username = $2),
+			$3, CURRENT_TIMESTAMP, $4
+		);
+	`
+
+	comment := "fail"
+	if marks > 0 {
+		comment = "pass"
+	}
+
+	_, err := m.DB.ExecContext(ctx, query, questionId, username, marks, comment)
+	if err != nil {
+		return fmt.Errorf("error adding student grades: %w", err)
+	}
+
+	return nil
+}
+
+func (m *PostgresRepo) GetCourseCodeAndAssignmentIdFromQuestionId(questionId string) (string, string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	var courseCode string
+	var assignmentId string
+	// SQL query to join tables and get course_code and assignment_id based on question_id
+	query := `
+        SELECT c.course_code, a.assignment_id
+        FROM questions q
+        JOIN assignments a ON q.assignment_id = a.assignment_id
+        JOIN courses c ON a.course_id = c.course_id
+        WHERE q.question_id = $1;
+    `
+
+	// Execute the query
+	row := m.DB.QueryRowContext(ctx, query, questionId)
+
+	// Scan the results into the variables
+	err := row.Scan(&courseCode, &assignmentId)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", "", fmt.Errorf("no course or assignment found for question id %s", questionId)
+		}
+		return "", "", fmt.Errorf("error retrieving course code and assignment id: %v", err)
+	}
+
+	// Return the results
+	return courseCode, assignmentId, nil
+}
+
+func (m *PostgresRepo) SubmitAssignment(assignmentId string, username string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	query := `
+				WITH student_id_cte AS (
+				SELECT user_id
+				FROM users
+				WHERE username = $1 -- Replace $1 with the username
+				),
+				total_marks_cte AS (
+					SELECT 
+						sm.user_id,
+						q.assignment_id,
+						SUM(sm.marks) AS total_marks
+					FROM 
+						student_marks sm
+					INNER JOIN submissions s ON sm.submission_id = s.submission_id
+					INNER JOIN questions q ON s.question_id = q.question_id
+					WHERE 
+						sm.user_id = (SELECT user_id FROM student_id_cte)
+						AND q.assignment_id = $2 -- Replace $2 with the assignment_id
+					GROUP BY sm.user_id, q.assignment_id
+				)
+				INSERT INTO assignment_grades (student_id, assignment_id, total_score, graded_at)
+				SELECT 
+					tmc.user_id,
+					tmc.assignment_id,
+					tmc.total_marks,
+					CURRENT_TIMESTAMP
+				FROM 
+					total_marks_cte tmc
+				ON CONFLICT (student_id, assignment_id) 
+				DO UPDATE SET total_score = EXCLUDED.total_score, graded_at = EXCLUDED.graded_at;
+				`
+	_, err := m.DB.ExecContext(ctx, query, username, assignmentId)
+	if err != nil {
+		fmt.Println("Failed to insert into assignment_grades:", err)
+		return err
+	}
+	return nil
 }

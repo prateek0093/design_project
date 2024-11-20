@@ -14,9 +14,11 @@ type DB struct {
 
 var DBConn = &DB{}
 
-const maxOpenDbConnection = 10
+const maxOpenDbConnection = 25
 const maxIdleDbConnection = 5
-const maxLifetimeDbConnection = 5 * time.Minute
+const maxLifetimeDbConnection = 30 * time.Minute
+const maxRetries = 3
+const connectTimeout = 10
 
 func ConnectSQL(dsn string) (*DB, error) {
 	db, err := NewDatabase(dsn)

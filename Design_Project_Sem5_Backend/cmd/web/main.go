@@ -13,7 +13,7 @@ const portnumber = ":8080"
 func main() {
 
 	fmt.Println("Connecting to Database")
-	db, err := drivers.ConnectSQL("host=localhost port=5432 dbname=DesignProject user=yash password=123")
+	db, err := drivers.ConnectSQL("host=localhost port=5432 dbname=DesignProject user=yash password=123 connect_timeout=10")
 	if err != nil {
 		fmt.Println(err)
 		return

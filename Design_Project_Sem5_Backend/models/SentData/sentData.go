@@ -15,13 +15,15 @@ type AssignmentData struct {
 	AssignmentId   string    `json:"assignmentId"`
 	StartTime      time.Time `json:"startTime"`
 	EndTime        time.Time `json:"endTime"`
+	Submitted      bool      `json:"isSubmitted"`
 }
-type Question struct {
-	//AssignmentName string    `json:"assignmentName"`
-	QuestionId   string `json:"questionId"`
-	QuestionText string `json:"questionText"`
-	MaxScore     int    `json:"maxScore"`
+type StudentAssignmentDetails struct {
+	AssignmentName string `json:"assignmentName"`
+	QuestionStatus bool   `json:"questionStatus"`
+	QuestionId     string `json:"questionId"`
+	//QuestionText   string `json:"questionText"`
+	MaxScore int `json:"maxScore"`
 	//CodeFile      []byte    `json:"cfile"` // Stores the .c file content
-	TestCasesFile []byte    `json:"csv"` // Stores the .csv file content
-	CreatedAt     time.Time `json:"createdAt"`
+	//TestCasesFile []byte    `json:"csv"` // Stores the .csv file content
+	CreatedAt time.Time `json:"createdAt"`
 }
