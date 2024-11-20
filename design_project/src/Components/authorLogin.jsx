@@ -157,9 +157,9 @@ const AuthorLogin = () => {
             </form>
 
             <div className="mt-4 flex justify-between items-center text-sm">
-              <a href="#" className="text-gray-600 hover:text-gray-800">
+              {/* <a href="#" className="text-gray-600 hover:text-gray-800">
                 Forgot Password?
-              </a>
+              </a> */}
             </div>
           </div>
         </div>

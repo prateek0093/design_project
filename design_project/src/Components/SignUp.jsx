@@ -101,7 +101,7 @@ const SignUp = () => {
           {/*<span className="text-gray-400">Code</span>*/}
         </h1>
         <nav className="flex gap-10 text-sm">
-          <a
+          {/* <a
             href="#"
             className="text-gray-600 px-4 py-2 rounded-full hover:text-purple-600 hover:bg-purple-50 transition-all"
           >
@@ -112,7 +112,7 @@ const SignUp = () => {
             className="text-gray-600 px-4 py-2 rounded-full hover:text-purple-600 hover:bg-purple-50 transition-all"
           >
             Explore
-          </a>
+          </a> */}
           <a
             href="#"
             className="text-gray-600 px-4 py-2 rounded-full hover:text-purple-600 hover:bg-purple-50 transition-all"
@@ -154,8 +154,8 @@ const SignUp = () => {
             <div className="flex items-center justify-center gap-3 mb-6">
               <img src={image} alt="LeetCode logo" className="w-7 h-7" />
               <h2 className="text-2xl font-bold">
-                <span className="text-purple-600">Leet</span>
-                <span className="text-gray-400">Code</span>
+                <span className="text-purple-600">Code</span>
+                <span className="text-gray-400">LAB</span>
               </h2>
             </div>
 
