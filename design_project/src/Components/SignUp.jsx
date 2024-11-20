@@ -226,7 +226,7 @@ const SignUp = () => {
             <div className="flex justify-between items-center text-xs my-6">
               <p
                 onClick={() => navigate("/login")}
-                className="text-purple-600 font-semibold"
+                className="text-purple-600 font-semibold hover:cursor-pointer"
                 cursor-pointer
               >
                 Log In
