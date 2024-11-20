@@ -14,6 +14,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/joho/godotenv"
 	"io"
+	"math"
 	"math/big"
 	"net/http"
 	"net/smtp"
@@ -82,6 +83,104 @@ func (m *Repository) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	role, err := m.DB.GetRoleFromUserName(username)
+	if err != nil {
+		fmt.Println("Error getting role from user:", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	if role != "student" {
+		fmt.Println("author tried to access")
+		http.Error(w, "Invalid role", http.StatusUnauthorized)
+		return
+	}
+	claims := &Claims{
+		Username: username,
+		Role:     role,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+		},
+	}
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5174") // Replace with your frontend URL
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Content-Type", "application/json")
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_KEY")))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode("Error generating token")
+		fmt.Println("Error in signing token", err)
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     "accessToken",
+		Value:    tokenString,
+		Path:     "/",
+		Expires:  time.Now().Add(24 * time.Hour),
+		HttpOnly: false,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
+	})
+	// Successful login
+	response["success"] = true
+	response["username"] = username
+	response["tokenString"] = tokenString
+	w.WriteHeader(http.StatusOK)
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		fmt.Println("Error encoding response:", err)
+	}
+}
+
+func (m *Repository) AuthorLogin(w http.ResponseWriter, r *http.Request) {
+	if err := godotenv.Load(); err != nil {
+		fmt.Println("Error loading environment variables:", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	var user RecievedData.User
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		http.Error(w, "Error parsing login data", http.StatusBadRequest)
+		fmt.Println("Error parsing login data:", err)
+		return
+	}
+	fmt.Println(user)
+	response := make(map[string]interface{})
+
+	username, verified, err := m.DB.Login(user.Email, user.Password)
+	switch {
+	case errors.Is(err, errors.New("user not found")):
+		fmt.Println("User not found")
+		http.Error(w, "Invalid username", http.StatusUnauthorized)
+		return
+	case errors.Is(err, errors.New("invalid password")):
+		fmt.Println("Invalid password")
+		http.Error(w, "Invalid password", http.StatusUnauthorized)
+		return
+	case err != nil:
+		fmt.Println("Error logging in user:", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if !verified {
+		fmt.Println("User not verified")
+		http.Error(w, "User not verified", http.StatusUnauthorized)
+		return
+	}
+	role, err := m.DB.GetRoleFromUserName(username)
+	if err != nil {
+		fmt.Println("Error getting role:", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	fmt.Println(role)
+	if role != "author" {
+		fmt.Println("Student tried to access")
+		http.Error(w, "Invalid role", http.StatusUnauthorized)
+		return
+	}
 	claims := &Claims{
 		Username: username,
 		Role:     role,
@@ -353,9 +452,16 @@ func (m *Repository) AddCourse(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Error adding course", err)
 		return
 	}
-
-	w.WriteHeader(http.StatusCreated)
-	_, _ = w.Write([]byte("Course added successfully"))
+	response := map[string]interface{}{
+		"success": true,
+	}
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		fmt.Println("Error in encoding response", err)
+		return
+	}
+	//w.WriteHeader(http.StatusCreated)
+	//_, _ = w.Write([]byte("Course added successfully"))
 }
 
 func (m *Repository) AllAssignmentForCourse(w http.ResponseWriter, r *http.Request) {
@@ -401,8 +507,8 @@ func (m *Repository) AddAssignment(w http.ResponseWriter, r *http.Request) {
 	var newAssignment RecievedData.Assignment
 	newAssignment.CourseCode = courseCode
 	newAssignment.AssignmentName = r.FormValue("assignmentName")
-	newAssignment.StartTime, _ = time.Parse("2006-01-02", r.FormValue("startTime"))
-	newAssignment.EndTime, _ = time.Parse("2006-01-02", r.FormValue("endTime"))
+	newAssignment.StartTime, _ = time.Parse("2006-01-02T15:04", r.FormValue("startTime"))
+	newAssignment.EndTime, _ = time.Parse("2006-01-02T15:04", r.FormValue("endTime"))
 	newAssignment.CreatedAt = time.Now()
 
 	// Extract questions and their files from the form data
@@ -486,10 +592,20 @@ func (m *Repository) AddAssignment(w http.ResponseWriter, r *http.Request) {
 	// Checking code for correctness against all test cases before adding to db
 	for i := 0; i < len(newAssignment.Questions); i++ {
 		question := newAssignment.Questions[i]
-		pass, errString := helpers.ValidateCodeAgainstTestCases(string(question.CodeFile), question.TestCasesFile, os.Getenv("JUDGE0_URL"))
+		_, pass, errString := helpers.ValidateCodeAgainstTestCases(string(question.CodeFile), question.TestCasesFile, os.Getenv("JUDGE0_URL"))
 		if !pass {
 			fmt.Println("Error in validating question:", i+1, errString)
 			http.Error(w, "Failed to add assignment", http.StatusBadRequest)
+			response := map[string]interface{}{
+				"success": false,
+				"error":   errString,
+			}
+			err = json.NewEncoder(w).Encode(response)
+			if err != nil {
+				fmt.Println("Error encoding json", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -502,17 +618,24 @@ func (m *Repository) AddAssignment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//fmt.Println("NewAssignment", newAssignment)
-	//fmt.Println("newAssignment name:", newAssignment.AssignmentName, "newAssignment start time:", newAssignment.StartTime, "newAssignment end time:", newAssignment.EndTime)
+	fmt.Println("newAssignment name:", newAssignment.AssignmentName, "newAssignment start time:", newAssignment.StartTime, "newAssignment end time:", newAssignment.EndTime)
 	//for i := 0; i < len(newAssignment.Questions); i++ {
 	//	fmt.Println("newAssignment Question name:", newAssignment.Questions[0].QuestionText)
 	//	fmt.Println("newAssignment Question code:", string(newAssignment.Questions[0].CodeFile))
 	//	fmt.Println("newAssignment Question csv", string(newAssignment.Questions[0].TestCasesFile))
 	//}
 	//fmt.Println("courseCode", courseCode)
-
+	response := map[string]interface{}{
+		"success": false,
+	}
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		fmt.Println("Error encoding json")
+		return
+	}
 	// For now, let's just return a success message
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Assignment added successfully"))
+	//w.WriteHeader(http.StatusOK)
+	//w.Write([]byte("Assignment added successfully"))
 }
 
 func (m *Repository) AllQuestionsForAssignment(w http.ResponseWriter, r *http.Request) {
@@ -547,6 +670,7 @@ func (m *Repository) StudentSubmission(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	username := r.Context().Value("username").(string)
+	//fmt.Println("I was here")
 	questionId := chi.URLParam(r, "questionId")
 	err := r.ParseMultipartForm(10 << 20)
 	if err != nil {
@@ -571,33 +695,40 @@ func (m *Repository) StudentSubmission(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 		return
 	}
-	//fmt.Println("cFile:", string(codeFileContent))
+	fmt.Println("cFile:", string(codeFileContent))
 	testCasesFile, err := m.DB.GetTestCasesFromQuestionId(questionId)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+	max_marks, err := m.DB.GetMarksFromQuestionId(questionId)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	//fmt.Println("testCasesFile:", string(testCasesFile))
-
-	pass, errString := helpers.ValidateCodeAgainstTestCases(string(codeFileContent), testCasesFile, os.Getenv("JUDGE0_URL"))
+	totalTests := len(testCasesFile) - 1
+	passedCasescount, pass, errString := helpers.ValidateCodeAgainstTestCases(string(codeFileContent), testCasesFile, os.Getenv("JUDGE0_URL"))
 	err = m.DB.AddSubmission(username, questionId, codeFileContent)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	marks := 0
+	var temp float64
+	temp = float64(passedCasescount*max_marks) / float64(totalTests)
+	marks := int(math.Round(temp)) // Round temp before converting to int
+	fmt.Println(temp, marks, max_marks)
 	if !pass {
+		fmt.Println("number of testcases passed", passedCasescount)
 		fmt.Println("Error in submitting question:", errString)
-		marks = 0
-	} else {
-		marks = 100
+		//marks = 0
 	}
 	err = m.DB.SubmitQuestion(marks, username, questionId)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println(pass, errString)
+	//fmt.Println(pass, errString)
 	response := map[string]interface{}{
 		"success": true,
 	}
@@ -612,6 +743,7 @@ func (m *Repository) StudentSubmission(w http.ResponseWriter, r *http.Request) {
 func (m *Repository) SendQuestionDetailsForEditor(w http.ResponseWriter, r *http.Request) {
 	questionId := chi.URLParam(r, "questionId")
 	//fmt.Println(questionId)
+	username := r.Context().Value("username").(string)
 	questionText, err := m.DB.GetQuestionTextFromId(questionId)
 	if err != nil {
 		fmt.Println("Error getting question text", err)
@@ -623,11 +755,17 @@ func (m *Repository) SendQuestionDetailsForEditor(w http.ResponseWriter, r *http
 		fmt.Println("Error getting course code and assignment id", err)
 		return
 	}
+	isAttempted, err := m.DB.GetQuestionAttemptedStatus(username, questionId)
+	if err != nil {
+		fmt.Println("Error getting question attempted status", err)
+		return
+	}
 	response := map[string]interface{}{
 		"success":      true,
 		"questionText": questionText,
 		"courseCode":   courseCode,
 		"assignmentId": assignmentId,
+		"status":       isAttempted,
 	}
 	err = json.NewEncoder(w).Encode(response)
 	if err != nil {
@@ -657,4 +795,57 @@ func (m *Repository) SubmitAssignment(w http.ResponseWriter, r *http.Request) {
 	}
 	//w.WriteHeader(http.StatusOK)
 	//w.Write([]byte("Assignment submitted successfully"))
+}
+
+func (m *Repository) ShowAllAssignmentSubmission(w http.ResponseWriter, r *http.Request) {
+	//username := chi.URLParam(r, "username")
+	assignmentId := chi.URLParam(r, "assignmentId")
+
+	subDetails, err := m.DB.GetSubmissionDetailsForProfessor(assignmentId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		fmt.Println("Error getting submission details", err)
+		return
+	}
+	response := map[string]interface{}{
+		"success":    true,
+		"subDetails": subDetails,
+	}
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		fmt.Println("Error encoding json", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+func (m *Repository) GetRole(w http.ResponseWriter, r *http.Request) {
+	role, ok := r.Context().Value("role").(string)
+	//fmt.Println(role)
+	if !ok {
+		//w.WriteHeader(http.StatusBadRequest)
+		fmt.Println("you have no role", ok, "role", role)
+		response := map[string]interface{}{
+			"success": false,
+			"role":    role,
+		}
+		err := json.NewEncoder(w).Encode(response)
+		if err != nil {
+			fmt.Println("Error encoding json", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	} else {
+		response := map[string]interface{}{
+			"success": true,
+			"role":    role,
+		}
+		err := json.NewEncoder(w).Encode(response)
+		if err != nil {
+			fmt.Println("Error encoding json", err)
+			//w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
 }

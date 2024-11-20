@@ -27,3 +27,9 @@ type StudentAssignmentDetails struct {
 	//TestCasesFile []byte    `json:"csv"` // Stores the .csv file content
 	CreatedAt time.Time `json:"createdAt"`
 }
+type SubmissionData struct {
+	RollNumber     string    `json:"rollNumber"`
+	Username       string    `json:"username"`
+	Marks          int       `json:"marks"`
+	SubmissionTime time.Time `json:"submissionTime"`
+}

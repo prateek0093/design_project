@@ -5,144 +5,197 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 )
 
-func ValidateCodeAgainstTestCases(code string, testCasesFile []byte, judge0_url string) (bool, string) {
+// SubmissionResult represents the Judge0 submission response
+type SubmissionResult struct {
+	Output string `json:"stdout"`
+	Error  string `json:"stderr"`
+	Status struct {
+		ID          int    `json:"id"`
+		Description string `json:"description"`
+	} `json:"status"`
+}
+
+// TestResult represents the result of a single test case
+type TestResult struct {
+	Input          string
+	ExpectedOutput string
+	ActualOutput   string
+	Error          error
+	Passed         bool
+	TestNumber     int
+}
+
+func ValidateCodeAgainstTestCases(code string, testCasesFile []byte, judge0URL string) (int, bool, string) {
 	// Parse the CSV
 	reader := csv.NewReader(bytes.NewReader(testCasesFile))
 	testCases, err := reader.ReadAll()
 	if err != nil {
-		fmt.Println("Error parsing CSV file:", err)
-		return false, "CSV parsing error"
+		return 0, false, fmt.Sprintf("CSV parsing error: %v", err)
 	}
 
-	// Channel for errors
-	errors := make(chan string, len(testCases))
+	if len(testCases) <= 1 { // Only header or empty file
+		return 0, false, "no test cases found"
+	}
+
+	totalTests := len(testCases) - 1 // Excluding header
+
+	// Create a single HTTP client to reuse
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	// Create channels for results and concurrency control
+	resultsChan := make(chan TestResult, totalTests)
+	// Limit concurrent executions to avoid overwhelming the Judge0 service
+	semaphore := make(chan struct{}, 10) // Allow up to 10 concurrent requests
+
 	var wg sync.WaitGroup
 
-	// Iterate over test cases concurrently
-	for i, testCase := range testCases {
-		if i == 0 {
-			continue // Skip header
-		}
-		input := testCase[0]
-		expectedOutput := testCase[1]
-
+	// Process test cases concurrently
+	for i := 1; i < len(testCases); i++ { // Skip header
 		wg.Add(1)
-		go func(input, expectedOutput string) {
+		go func(testNumber int, input, expectedOutput string) {
 			defer wg.Done()
-			// Send code to Judge0 for execution
-			actualOutput, err := executeCodeOnJudge0(code, input, expectedOutput, judge0_url)
-			if err != nil || strings.TrimSpace(actualOutput) != strings.TrimSpace(expectedOutput) {
-				errors <- fmt.Sprintf("Input: %s, Expected: %s, Got: %s", input, expectedOutput, actualOutput)
+
+			// Acquire semaphore
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
+
+			// Execute test case
+			actualOutput, err := executeCodeOnJudge0(client, code, input, expectedOutput, judge0URL)
+
+			passed := err == nil && strings.TrimSpace(actualOutput) == strings.TrimSpace(expectedOutput)
+
+			resultsChan <- TestResult{
+				Input:          input,
+				ExpectedOutput: expectedOutput,
+				ActualOutput:   actualOutput,
+				Error:          err,
+				Passed:         passed,
+				TestNumber:     testNumber,
 			}
-		}(input, expectedOutput)
+		}(i, testCases[i][0], testCases[i][1])
 	}
 
-	// Wait for all goroutines to finish
-	wg.Wait()
-	close(errors)
+	// Close results channel when all goroutines complete
+	go func() {
+		wg.Wait()
+		close(resultsChan)
+	}()
 
-	// Collect errors
-	if len(errors) > 0 {
-		return false, <-errors
+	// Process all results
+	passedTests := 0
+	var failedTestDetails []string
+
+	for result := range resultsChan {
+		if result.Passed {
+			passedTests++
+		} else {
+			var failureReason string
+			if result.Error != nil {
+				failureReason = fmt.Sprintf("Test case %d failed. Input: %s, Expected: %s, Got: %s with error: %v",
+					result.TestNumber, result.Input, result.ExpectedOutput, result.ActualOutput, result.Error)
+			} else {
+				failureReason = fmt.Sprintf("Test case %d failed. Input: %s, Expected: %s, Got: %s",
+					result.TestNumber, result.Input, result.ExpectedOutput, result.ActualOutput)
+			}
+			failedTestDetails = append(failedTestDetails, failureReason)
+		}
 	}
 
-	return true, ""
+	// Generate summary
+	summary := fmt.Sprintf("Passed %d out of %d test cases", passedTests, totalTests)
+	if len(failedTestDetails) > 0 {
+		summary += "\nFailed test details:\n" + strings.Join(failedTestDetails, "\n")
+	}
+
+	return passedTests, passedTests == totalTests, summary
 }
-func executeCodeOnJudge0(code, input, expected_output, judge0_url string) (string, error) {
-	submissionPayload := map[string]interface{}{
-		"source_code":     code,
-		"language_id":     1, // Language ID for C
-		"stdin":           input,
-		"expected_output": expected_output,
+
+func executeCodeOnJudge0(client *http.Client, code, input, expectedOutput, judge0URL string) (string, error) {
+	// Submit code
+	token, err := submitCode(client, code, input, expectedOutput, judge0URL)
+	if err != nil {
+		return "", fmt.Errorf("submission failed: %v", err)
 	}
 
-	jsonPayload, _ := json.Marshal(submissionPayload)
-	//fmt.Println(string(jsonPayload))
-	//fmt.Println(jsonPayload)
-	judge0URL := judge0_url + "/submissions"
+	// Wait for and get result
+	return waitForResult(client, token, judge0URL)
+}
 
-	req, err := http.NewRequest("POST", judge0URL, bytes.NewBuffer(jsonPayload))
+func submitCode(client *http.Client, code, input, expectedOutput, judge0URL string) (string, error) {
+	payload := map[string]interface{}{
+		"source_code":     code,
+		"language_id":     1,
+		"stdin":           input,
+		"expected_output": expectedOutput,
+	}
+
+	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		fmt.Println("error sending post request", err)
-		return "", err
+		return "", fmt.Errorf("failed to marshal JSON: %v", err)
+	}
+
+	req, err := http.NewRequest("POST", judge0URL+"/submissions", bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	//req.Header.Set("X-Auth-Token", os.Getenv("JUDGE0_API_TOKEN"))
 
-	client := &http.Client{}
-	res, err := client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("error sending post request", err)
-		return "", err
+		return "", fmt.Errorf("failed to send request: %v", err)
 	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			return
-		}
-	}(res.Body)
+	defer resp.Body.Close()
 
 	var response map[string]interface{}
-	err = json.NewDecoder(res.Body).Decode(&response)
-	if err != nil {
-		fmt.Println("Error decoding json", err)
-		return "", err
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return "", fmt.Errorf("failed to decode response: %v", err)
 	}
 
-	token := response["token"].(string)
-	//fmt.Println("token:", token)
-	return fetchExecutionResult(token, judge0_url)
+	token, ok := response["token"].(string)
+	if !ok {
+		return "", fmt.Errorf("invalid token in response")
+	}
+
+	return token, nil
 }
 
-func fetchExecutionResult(token, judge0_url string) (string, error) {
-	time.Sleep(1 * time.Second)
-	judge0URL := judge0_url + "/submissions/" + token
-	//fmt.Println(judge0URL)
-	client := &http.Client{}
-	req, _ := http.NewRequest("GET", judge0URL, nil)
-	//req.Header.Set("X-Auth-Token", os.Getenv("JUDGE0_API_TOKEN"))
-
-	res, err := client.Do(req)
-	if err != nil {
-		fmt.Println("error sending get request", err)
-		return "", err
-	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
+func waitForResult(client *http.Client, token, judge0URL string) (string, error) {
+	maxAttempts := 300 // Maximum number of attempts (300 seconds)
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		time.Sleep(time.Second) // Wait before checking result
+		//fmt.Println(token)
+		req, err := http.NewRequest("GET", judge0URL+"/submissions/"+token, nil)
 		if err != nil {
-			fmt.Println(err)
-			return
+			return "", err
 		}
-	}(res.Body)
 
-	var result struct {
-		Output string `json:"stdout"`
-		Error  string `json:"stderr"`
-		Status struct {
-			Id          int    `json:"id"`
-			Description string `json:"description"`
-		} `json:"status"`
-	}
+		resp, err := client.Do(req)
+		if err != nil {
+			return "", err
+		}
+		defer resp.Body.Close()
 
-	err = json.NewDecoder(res.Body).Decode(&result)
-	if err != nil {
-		fmt.Println(err)
-		return "", err
-	}
-	//fmt.Println(result)
-	if result.Status.Id == 2 || result.Status.Id == 1 {
-		return fetchExecutionResult(token, judge0_url)
-	}
-	if result.Status.Id == 3 || result.Status.Description == "Accepted" {
-		return result.Output, nil
-	}
+		var result SubmissionResult
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			return "", err
+		}
 
-	return result.Output, fmt.Errorf("execution failed: %v", result.Error)
+		switch result.Status.ID {
+		case 1, 2: // In Queue or Processing
+			continue
+		case 3: // Accepted
+			return result.Output, nil
+		default:
+			return "", fmt.Errorf("execution failed: %v", result.Error)
+		}
+	}
+	return "", fmt.Errorf("timeout waiting for result after %d seconds", maxAttempts)
 }

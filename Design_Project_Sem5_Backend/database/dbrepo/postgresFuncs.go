@@ -703,3 +703,62 @@ func (m *PostgresRepo) SubmitAssignment(assignmentId string, username string) er
 	}
 	return nil
 }
+
+func (m *PostgresRepo) GetMarksFromQuestionId(questionId string) (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	var marks int
+	query := `SELECT max_score from questions where question_id = $1`
+	row := m.DB.QueryRowContext(ctx, query, questionId)
+	err := row.Scan(&marks)
+	if err == sql.ErrNoRows {
+		return -1, fmt.Errorf("no course or assignment found for question id %s", questionId)
+	} else if err != nil {
+		return -1, err
+	}
+	return marks, nil
+}
+
+func (m *PostgresRepo) GetSubmissionDetailsForProfessor(assignmentId string) ([]SentData.SubmissionData, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	var subDetails []SentData.SubmissionData
+	query := `SELECT u.username,u.email,asg.total_score,asg.graded_at 
+			FROM assignment_grades as asg
+			JOIN users as u ON asg.student_id = u.user_id
+			WHERE asg.assignment_id = $1
+			`
+	rows, err := m.DB.QueryContext(ctx, query, assignmentId)
+	if err != nil {
+		fmt.Println("Failed to get submission details:", err)
+		return subDetails, err
+	}
+	for rows.Next() {
+		var subData SentData.SubmissionData
+		err1 := rows.Scan(&subData.Username, &subData.RollNumber, &subData.Marks, &subData.SubmissionTime)
+		if err1 != nil {
+			fmt.Println("Failed to get submission details:", err1)
+			return nil, err1
+		}
+		subData.RollNumber = subData.RollNumber[:11]
+		subDetails = append(subDetails, subData)
+	}
+	return subDetails, nil
+}
+
+func (m *PostgresRepo) GetQuestionAttemptedStatus(username, questionId string) (bool, error) {
+	var questionSubmitted int
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	query := `SELECT COUNT(1)
+             FROM submissions
+             WHERE question_id = $1 AND student_id=(SELECT user_id from users where username = $2)
+             `
+	row := m.DB.QueryRowContext(ctx, query, questionId, username)
+	err := row.Scan(&questionSubmitted)
+	if err != nil {
+		fmt.Println("Error checking submission status:", err)
+		return false, err
+	}
+	return questionSubmitted == 1, nil
+}
