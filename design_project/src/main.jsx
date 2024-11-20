@@ -14,6 +14,7 @@ import AssignmentStatus from "./Components/AssignmentStatus.jsx";
 import StudentCourseViewPage from "./Components/studentPages/viewOneCourse.jsx";
 import EditorAttempt from "./Components/studentPages/EditorAttempter.jsx";
 import StudentAssignmentViewPage from "./Components/studentPages/viewOneAssignment.jsx";
+import Submission from "./Components/Submission.jsx";
 const App = () => {
   return (
     <div className="app">
@@ -73,6 +74,10 @@ const appRouter = createBrowserRouter([
       {
         path: "/assignment/:assignmentId",
         element: <AssignmentStatus />,
+      },
+      {
+        path: "/author/assignment/submission",
+        element: <Submission />,
       },
     ],
   },

@@ -8,6 +8,8 @@ const AddCourse = () => {
   const [courseCode, setCourseCode] = useState("");
   const [branch, setBranch] = useState("");
   const [batchYear, setBatchYear] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
   const [loading, setLoading] = useState(false);
   const [cookies] = useCookies(["accessToken"]);
   const [error, setError] = useState(null);
@@ -17,7 +19,9 @@ const AddCourse = () => {
       !courseName.trim() ||
       !courseCode.trim() ||
       !branch.trim() ||
-      !batchYear.trim()
+      !batchYear.trim() ||
+      !startTime.trim() ||
+      !endTime.trim()
     ) {
       setError("Please fill in all the fields.");
       return;
@@ -28,11 +32,14 @@ const AddCourse = () => {
       setError(null);
 
       const payload = {
-        courseName: courseName,
-        courseCode: courseCode,
-        branch: branch,
-        batchYear: batchYear,
+        courseName,
+        courseCode,
+        branch,
+        batchYear,
+        startTime,
+        endTime,
       };
+
       await axios.post(
         import.meta.env.VITE_BE_URL + "/verified/author/addCourse",
         payload,
@@ -48,6 +55,8 @@ const AddCourse = () => {
       setCourseCode("");
       setBranch("");
       setBatchYear("");
+      setStartTime("");
+      setEndTime("");
       alert("Course added successfully!");
     } catch (err) {
       setError("Failed to add course. Please try again.");
@@ -85,6 +94,7 @@ const AddCourse = () => {
                 className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-200 focus:border-purple-500 transition-all duration-200"
               />
             </div>
+
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Course Code
@@ -123,6 +133,30 @@ const AddCourse = () => {
                 value={batchYear}
                 onChange={(e) => setBatchYear(e.target.value)}
                 placeholder="Enter batch year"
+                className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-200 focus:border-purple-500 transition-all duration-200"
+              />
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Start Time
+              </label>
+              <input
+                type="datetime-local"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-200 focus:border-purple-500 transition-all duration-200"
+              />
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                End Time
+              </label>
+              <input
+                type="datetime-local"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
                 className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-200 focus:border-purple-500 transition-all duration-200"
               />
             </div>
