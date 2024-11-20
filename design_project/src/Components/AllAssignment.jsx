@@ -118,12 +118,12 @@ const AllAssignmentPage = () => {
         ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filteredAssignments.map((assignment) => (
-                  <Link to={`/assignment/${assignment.id}`} key={assignment.id}>
+                  <Link to={`/author/assignment/submission/${assignment.assignmentId}`} key={assignment.assignmentId}>
                     <AssignmentCard
                         title={assignment.assignmentName}
                         startTime={assignment.startTime}  // Corrected prop
                         endTime={assignment.endTime}      // Corrected prop
-                        id={assignment.id}
+                        id={assignment.assignmentId}
                         data={assignment.data}
                     />
                   </Link>

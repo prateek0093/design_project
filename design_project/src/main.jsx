@@ -76,7 +76,7 @@ const appRouter = createBrowserRouter([
         element: <AssignmentStatus />,
       },
       {
-        path: "/author/assignment/submission",
+        path: "/author/assignment/submission/:assignmentId",
         element: <Submission />,
       },
     ],

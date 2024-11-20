@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useCookies } from "react-cookie";
+import Header from "./header.jsx";
 import { PlusCircle, Loader2, Save } from "lucide-react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom"; // Import useNavigate
@@ -52,8 +53,8 @@ const AddCourse = () => {
           withCredentials: true,
         }
       );
-
-      if (response.data.success) {
+        console.log("h",response.data,"ji")
+      if (response.data && response.data.success) {
         // Clear the form
         setCourseName("");
         setCourseCode("");
