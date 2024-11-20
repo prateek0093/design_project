@@ -3,7 +3,7 @@ import { Eye, EyeOff } from "lucide-react";
 import OTPDialog from "./OTPdialog";
 import image from "/image.png";
 import axios from "axios";
-import { Link,useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 const SignUp = () => {
   const [formData, setFormData] = useState({
     email: "",
@@ -61,14 +61,12 @@ const SignUp = () => {
           formData
         );
         console.log("Registration successful:", response.data);
-
         setIsOTPDialogOpen(true);
       } catch (error) {
         console.error("Error during registration:", error);
       }
     }
   };
-
   const handleOTPClose = () => {
     setIsOTPDialogOpen(false);
   };
@@ -99,8 +97,8 @@ const SignUp = () => {
     <div className="flex flex-col h-screen bg-gradient-to-br from-purple-50 to-white max-w-[1920px] mx-auto overflow-hidden">
       <header className="flex justify-between items-center px-16 py-3 bg-white shadow-md h-[10vh]">
         <h1 className="text-2xl font-bold">
-          <span className="text-purple-600">Leet</span>
-          <span className="text-gray-400">Code</span>
+          <span className="text-purple-600">Code Lab</span>
+          {/*<span className="text-gray-400">Code</span>*/}
         </h1>
         <nav className="flex gap-10 text-sm">
           <a
