@@ -29,4 +29,6 @@ type DatabaseRepo interface {
 	GetMarksFromQuestionId(questionId string) (int, error)
 	GetSubmissionDetailsForProfessor(assignmentId string) ([]SentData.SubmissionData, error)
 	GetQuestionAttemptedStatus(username, questionId string) (bool, error)
+	GetAllAssignmentsForStudents(username string) ([]SentData.AssignmentData, error)
+	GetAllSubmittedAssignmentsForStudents(username string) ([]SentData.SubmittedAssignmentData, error)
 }

@@ -55,6 +55,8 @@ func routes() http.Handler {
 			mux.With(RoleMiddleware("student")).Get("/questionText/{questionId}", handlers.Repo.SendQuestionDetailsForEditor)
 			mux.With(RoleMiddleware("student")).Post("/submitCode/{questionId}", handlers.Repo.StudentSubmission)
 			mux.With(RoleMiddleware("student")).Post("/submitAssignment/{assignmentId}", handlers.Repo.SubmitAssignment)
+			mux.With(RoleMiddleware("student")).Get("/all-assignments", handlers.Repo.AllAssignmentOfStudent)
+			mux.With(RoleMiddleware("student")).Get("/submitted-assignments", handlers.Repo.SubmittedAssignmentForStudent)
 		})
 	})
 

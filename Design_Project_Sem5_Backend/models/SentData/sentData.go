@@ -33,3 +33,14 @@ type SubmissionData struct {
 	Marks          int       `json:"marks"`
 	SubmissionTime time.Time `json:"submissionTime"`
 }
+type SubmittedAssignmentData struct {
+	CourseName     string    `json:"courseName"`
+	CourseCode     string    `json:"courseCode"`
+	AssignmentName string    `json:"assignmentName"`
+	AssignmentId   string    `json:"assignmentId"`
+	StartTime      time.Time `json:"startTime"`
+	EndTime        time.Time `json:"endTime"`
+	Submitted      bool      `json:"isSubmitted"`
+	GradedTime     time.Time `json:"gradedTime"`
+	ScoredMarks    int       `json:"scoredMarks"`
+}

@@ -355,7 +355,7 @@ func (m *PostgresRepo) executeAddCourse(username, courseCode, courseName, batchY
 	switch branch {
 	case "IT":
 		branchCode = "52"
-	case "BOTH":
+	case "Both":
 		branchCode = ""
 	}
 
@@ -761,4 +761,123 @@ func (m *PostgresRepo) GetQuestionAttemptedStatus(username, questionId string) (
 		return false, err
 	}
 	return questionSubmitted == 1, nil
+}
+
+func (m *PostgresRepo) GetAllAssignmentsForStudents(username string) ([]SentData.AssignmentData, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	var data []SentData.AssignmentData
+	defer cancel()
+	query := `SELECT 
+		c.course_code,
+		c.course_name,
+		a.assignment_name,
+		a.assignment_id,
+		a.expiration_time,
+		a.start_time AS assignment_start_time
+	FROM 
+		users AS u
+	JOIN 
+		enrollments AS e ON u.user_id = e.student_id
+	JOIN 
+		courses AS c ON e.course_id = c.course_id
+	JOIN 
+		assignments AS a ON c.course_id = a.course_id
+	WHERE 
+		u.username = $1
+	ORDER BY 
+		a.start_time DESC
+	`
+	rows, err := m.DB.QueryContext(ctx, query, username)
+	if errors.Is(err, sql.ErrNoRows) {
+		fmt.Println("No tasks Assigned")
+		err = errors.New("no tasks Assigned")
+		return []SentData.AssignmentData{}, err
+	} else if err != nil {
+		fmt.Println("Error getting recent Assignments:", err)
+		return []SentData.AssignmentData{}, err
+	}
+	for rows.Next() {
+		var assignmentData SentData.AssignmentData
+		err = rows.Scan(&assignmentData.CourseCode, &assignmentData.CourseName, &assignmentData.AssignmentName, &assignmentData.AssignmentId, &assignmentData.EndTime, &assignmentData.StartTime)
+		if err != nil {
+			fmt.Println("Error scanning assignments:", err)
+			return []SentData.AssignmentData{}, err
+		}
+		data = append(data, assignmentData)
+	}
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			fmt.Println("Error closing rows:", err)
+			return
+		}
+	}(rows)
+	query = `SELECT COUNT(1)
+             FROM assignment_grades
+             WHERE assignment_id = $1 AND student_id=(SELECT user_id from users where username = $2)`
+
+	for i := range data {
+		assignment := data[i]
+		var temp int
+		row := m.DB.QueryRowContext(ctx, query, assignment.AssignmentId, username)
+		err = row.Scan(&temp)
+		if err != nil {
+			fmt.Println("Error checking submission status:", err)
+			return []SentData.AssignmentData{}, err
+		}
+		data[i].Submitted = temp == 1
+	}
+	return data, nil
+}
+
+func (m *PostgresRepo) GetAllSubmittedAssignmentsForStudents(username string) ([]SentData.SubmittedAssignmentData, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	var assignments []SentData.SubmittedAssignmentData
+	query := `SELECT
+			c.course_code,
+			c.course_name,
+			a.assignment_name,
+			a.assignment_id,
+			a.expiration_time,
+			a.start_time AS assignment_start_time,
+			s.graded_at,
+			s.total_score
+			FROM users as u
+			JOIN 
+				enrollments AS e ON u.user_id = e.student_id
+			JOIN 
+				courses AS c ON e.course_id = c.course_id
+			JOIN 
+				assignments AS a ON c.course_id = a.course_id
+			JOIN 
+				assignment_grades AS s ON a.assignment_id = s.assignment_id
+			WHERE u.username = $1
+			`
+	rows, err := m.DB.QueryContext(ctx, query, username)
+	if errors.Is(err, sql.ErrNoRows) {
+		fmt.Println("No submitted Assignments")
+		err = errors.New("no submitted assignments")
+		return []SentData.SubmittedAssignmentData{}, err
+	} else if err != nil {
+		fmt.Println("Error getting recent Assignments:", err)
+		return []SentData.SubmittedAssignmentData{}, err
+	}
+	for rows.Next() {
+		var assignmentData SentData.SubmittedAssignmentData
+		err1 := rows.Scan(&assignmentData.CourseCode, &assignmentData.CourseName, &assignmentData.AssignmentName, &assignmentData.AssignmentId, &assignmentData.EndTime, &assignmentData.StartTime, &assignmentData.GradedTime, &assignmentData.ScoredMarks)
+		if err1 != nil {
+			fmt.Println("Error scanning submitted assignments:", err1)
+			return []SentData.SubmittedAssignmentData{}, err1
+		}
+		assignments = append(assignments, assignmentData)
+	}
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			fmt.Println("Error closing rows:", err)
+			return
+		}
+	}(rows)
+	return assignments, nil
 }

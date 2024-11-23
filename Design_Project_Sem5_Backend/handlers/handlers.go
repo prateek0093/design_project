@@ -701,25 +701,26 @@ func (m *Repository) StudentSubmission(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 		return
 	}
-	max_marks, err := m.DB.GetMarksFromQuestionId(questionId)
+	maxMarks, err := m.DB.GetMarksFromQuestionId(questionId)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	//fmt.Println("testCasesFile:", string(testCasesFile))
 	totalTests := len(testCasesFile) - 1
-	passedCasescount, pass, errString := helpers.ValidateCodeAgainstTestCases(string(codeFileContent), testCasesFile, os.Getenv("JUDGE0_URL"))
+	passedCasesCount, pass, errString := helpers.ValidateCodeAgainstTestCases(string(codeFileContent), testCasesFile, os.Getenv("JUDGE0_URL"))
 	err = m.DB.AddSubmission(username, questionId, codeFileContent)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+	fmt.Println(totalTests)
 	var temp float64
-	temp = float64(passedCasescount*max_marks) / float64(totalTests)
+	temp = float64(passedCasesCount*maxMarks) / float64(totalTests)
 	marks := int(math.Round(temp)) // Round temp before converting to int
-	fmt.Println(temp, marks, max_marks)
+	fmt.Println(temp, marks, maxMarks)
 	if !pass {
-		fmt.Println("number of testcases passed", passedCasescount)
+		fmt.Println("number of testcases passed", passedCasesCount)
 		fmt.Println("Error in submitting question:", errString)
 		//marks = 0
 	}
@@ -847,5 +848,80 @@ func (m *Repository) GetRole(w http.ResponseWriter, r *http.Request) {
 			//w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+	}
+}
+
+func (m *Repository) AllAssignmentOfStudent(w http.ResponseWriter, r *http.Request) {
+	username := r.Context().Value("username").(string)
+
+	assignments, err := m.DB.GetAllAssignmentsForStudents(username)
+	if errors.Is(err, errors.New("no tasks Assigned")) {
+		w.WriteHeader(http.StatusBadRequest)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		fmt.Println("no tasks assigned", err)
+		return
+	} else if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		fmt.Println("Error getting assignments", err)
+		return
+	}
+	response := map[string]interface{}{
+		"success":     true,
+		"assignments": assignments,
+	}
+	//fmt.Println(assignments)
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		fmt.Println("Error encoding json", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+func (m *Repository) SubmittedAssignmentForStudent(w http.ResponseWriter, r *http.Request) {
+	username := r.Context().Value("username").(string)
+	submittedAssignments, err := m.DB.GetAllSubmittedAssignmentsForStudents(username)
+	if errors.Is(err, errors.New("no submitted assignments")) {
+		w.WriteHeader(http.StatusBadRequest)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		fmt.Println("no submitted assignments", err)
+		response := map[string]interface{}{
+			"success": false,
+			"error":   "no submitted assignments",
+		}
+		err = json.NewEncoder(w).Encode(response)
+		if err != nil {
+			fmt.Println("Error encoding json", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		return
+	} else if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		fmt.Println("Error getting submitted assignments", err)
+		response := map[string]interface{}{
+			"success": false,
+			"error":   "error getting submitted assignments",
+		}
+		err = json.NewEncoder(w).Encode(response)
+		if err != nil {
+			fmt.Println("Error encoding json", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		return
+	}
+	//fmt.Println(submittedAssignments)
+	response := map[string]interface{}{
+		"success":     true,
+		"assignments": submittedAssignments,
+	}
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		fmt.Println("Error encoding json", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 }
