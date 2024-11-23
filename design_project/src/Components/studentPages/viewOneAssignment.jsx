@@ -17,27 +17,35 @@ export default function AssignmentStudentPage() {
     const fetchQuestions = async () => {
       try {
         const response = await axios.get(
-          `${
-            import.meta.env.VITE_BE_URL
-          }/verified/student/assignmentQuestions/${courseCode}/${assignment}`,
-          {
-            headers: {
-              Authorization: `Bearer ${cookie.accessToken}`,
-            },
-            withCredentials: true,
-          }
+            `${
+                import.meta.env.VITE_BE_URL
+            }/verified/student/assignmentQuestions/${courseCode}/${assignment}`,
+            {
+              headers: {
+                Authorization: `Bearer ${cookie.accessToken}`,
+              },
+              withCredentials: true,
+            }
         );
         console.log(response.data);
+
         if (response.data.success) {
-          setQuestionData(response.data.questions || []);
-          setAssignmentName(response.data.assignmentName || "Assignment");
+          const questions = response.data.questions || [];
+          setQuestionData(questions);
+          if (questions.length > 0) {
+            setAssignmentName(questions[0].assignmentName || "Assignment");
+          } else {
+            setAssignmentName("Assignment");
+          }
         } else {
           console.error("Error fetching questions:", response.data);
           setQuestionData([]);
+          setAssignmentName("Assignment");
         }
       } catch (err) {
         console.error("Error fetching the assignment questions:", err);
         setQuestionData([]);
+        setAssignmentName("Assignment");
       } finally {
         setLoading(false);
       }
@@ -62,7 +70,7 @@ export default function AssignmentStudentPage() {
         }
       );
 
-      if (response.data.success) {
+      if (response.data.success) { //changed
         navigate(`/enrolled/${courseCode}`);
       } else {
         console.error("Error submitting assignment:", response.data);

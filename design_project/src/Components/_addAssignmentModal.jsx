@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useParams} from "react-router-dom";
 import axios from "axios";
 import { useCookies } from "react-cookie";
-
+import {useNavigate} from "react-router-dom";
 export default function AddAssignmentModal({ setter }) {
   const [state, setState] = useState(0);
   const { courseCode } = useParams();
@@ -14,6 +14,7 @@ export default function AddAssignmentModal({ setter }) {
     startTime: "",
     endTime: "",
   });
+  const navigate=useNavigate();
 
   const handleSubmit = async () => {
     if (
@@ -66,6 +67,8 @@ export default function AddAssignmentModal({ setter }) {
       if (response.status === 200) {
         alert("Assignment submitted successfully!");
         setter(false);
+        navigate(`/profDashboard/addAssignment/${courseCode}`);
+        window.location.reload(); // Reloads the page after navigation
       } else {
         throw new Error("Failed to submit the assignment.");
       }
