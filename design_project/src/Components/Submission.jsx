@@ -32,6 +32,7 @@ const Submission = () => {
         );
         if (response.data.success && response.data.subDetails) {
           setStudents(response.data.subDetails);
+          console.log(response.data.subDetails);
         } else {
           setError("No submission details available");
         }
@@ -119,7 +120,7 @@ const Submission = () => {
                               <ChevronDown size={20} className="text-gray-400" />
                             </div>
                             <div className="text-sm text-gray-500">
-                              Email: {student.rollNumber}
+                              Roll Number: {student.rollNumber}
                             </div>
                           </div>
                       ))
@@ -148,7 +149,7 @@ const Submission = () => {
                           {selectedStudent.username}
                         </h3>
                         <p className="text-gray-700 mb-2">
-                          <span className="font-semibold">Email:</span>{" "}
+                          <span className="font-semibold">Roll Number:</span>{" "}
                           {selectedStudent.rollNumber}
                         </p>
                         <p className="text-gray-700 mb-2">
@@ -157,7 +158,8 @@ const Submission = () => {
                         </p>
                         <p className="text-gray-700">
                           <span className="font-semibold">Submission Time:</span>{" "}
-                          {new Date(selectedStudent.submissionTime).toLocaleString()}
+                          {selectedStudent.submissionTime.split("T")[0]}{" "}
+                          {selectedStudent.submissionTime.split("T")[1].slice(0, 5)}
                         </p>
                       </div>
                   ) : (

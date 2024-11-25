@@ -1,26 +1,23 @@
 import React from 'react';
 import { Calendar, Clock } from 'lucide-react';
+import { DateTime } from 'luxon';
 
 const AssignmentCard = ({ title, startTime, endTime, id }) => {
-  // Function to format date strings
+  // Function to format date strings to local timezone
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    const date = new Date(dateString);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
   };
 
   // Calculate submission status based on dates
-  const getSubmissionStatus = (start, end) => {
-    const now = new Date();
-    const startDate = new Date(start);
-    const endDate = new Date(end);
+    const getSubmissionStatus = (start, end) => {
+        const now = DateTime.now(); // Current date and time
+        const startDate = DateTime.fromISO(start); // Parse the start time from ISO string
+        const endDate = DateTime.fromISO(end); // Parse the end time from ISO string
 
-    if (now < startDate) return 'Upcoming';
-    if (now > endDate) return 'Closed';
-    return 'Active';
-  };
+
+        return ''; // Between start and end time
+    };
 
   const status = getSubmissionStatus(startTime, endTime);
 
@@ -49,12 +46,19 @@ const AssignmentCard = ({ title, startTime, endTime, id }) => {
 
           <div className="space-y-2">
             <div className="flex items-center text-gray-600">
-              <Calendar className="w-4 h-4 mr-2" />
-              <span className="text-sm">Start: {formatDate(startTime)}</span>
+              <Calendar className="w-4 h-4 mr-2"/>
+              <span className="text-sm">
+    Start: {startTime.split("T")[0]}{" "}
+                {startTime.split("T")[1].slice(0, 5)}
+  </span>
             </div>
+
             <div className="flex items-center text-gray-600">
-              <Clock className="w-4 h-4 mr-2" />
-              <span className="text-sm">Due: {formatDate(endTime)}</span>
+              <Clock className="w-4 h-4 mr-2"/>
+              <span className="text-sm">
+    End: {endTime.split("T")[0]}{" "}
+                {endTime.split("T")[1].slice(0, 5)}
+  </span>
             </div>
           </div>
 

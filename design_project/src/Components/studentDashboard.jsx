@@ -1,11 +1,13 @@
 import {useState, useEffect, useCallback, useLayoutEffect} from "react";
-import { Menu, X, BookOpen, Clock, ChevronRight, FileText, ListChecks } from "lucide-react";
+import { Menu, X, BookOpen, Clock, ChevronRight, FileText, ListChecks,ClipboardX } from "lucide-react";
 import { useCookies } from "react-cookie";
 import React from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate,useLocation } from "react-router-dom";
 import Header from "./header.jsx";
 
 const Dashboard = () => {
+    const location = useLocation();
+    const { username } = location.state || {};
     const [isSidebarOpen, setSidebarOpen] = useState(true);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -251,35 +253,56 @@ const Dashboard = () => {
                             <ListChecks className="w-6 h-6 text-purple-600" />
                             <h2 className="text-xl font-semibold text-gray-800">All Assignments</h2>
                         </div>
-                        <div className="space-y-3">
-                            {dashboardData.allAssignments?.assignments?.map((assignment, index) => (
-                                <div
-                                    key={index}
-                                    onClick={() => handleTaskClick1(assignment.courseCode, assignment.assignmentId, assignment.isSubmitted)}
-                                    className="flex flex-col p-3 rounded-lg hover:bg-purple-50 cursor-pointer transition-colors group"
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <h3 className="font-medium text-gray-800 group-hover:text-purple-600 transition-colors">
-                                            {assignment.assignmentName}
-                                        </h3>
-                                        <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600 transition-colors" />
+                        {allAssignmentsError ? (
+                            <div className="text-red-500 text-center py-8">
+                                {allAssignmentsError}
+                            </div>
+                        ) : specificLoading ? (
+                            <div className="flex justify-center items-center py-12">
+                                <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
+                            </div>
+                        ) : dashboardData.allAssignments?.assignments?.length > 0 ? (
+                            <div className="space-y-3">
+                                {dashboardData.allAssignments.assignments.map((assignment, index) => (
+                                    <div
+                                        key={index}
+                                        onClick={() => handleTaskClick1(assignment.courseCode, assignment.assignmentId, assignment.isSubmitted)}
+                                        className="flex flex-col p-3 rounded-lg hover:bg-purple-50 cursor-pointer transition-colors group"
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="font-medium text-gray-800 group-hover:text-purple-600 transition-colors">
+                                                {assignment.assignmentName}
+                                            </h3>
+                                            <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600 transition-colors" />
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-sm text-gray-500">{assignment.courseName}</span>
+                                            <span className="text-sm text-gray-400">•</span>
+                                            <span className="text-sm text-gray-500">
+                                                Start: {assignment.startTime.split("T")[0]}{" "}
+                                                {assignment.startTime.split("T")[1].slice(0, 5)}
+                                            </span>
+                                            <span className="text-sm text-gray-400">•</span>
+                                            <span className="text-sm text-gray-500">
+                                                Start: {assignment.endTime.split("T")[0]}{" "}
+                                                {assignment.endTime.split("T")[1].slice(0, 5)}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <span className="text-sm text-gray-500">{assignment.courseName}</span>
-                                        <span className="text-sm text-gray-400">•</span>
-                                        <span className="text-sm text-gray-500">
-                                            Start: {new Date(assignment.startTime).toLocaleString()}
-                                        </span>
-                                        <span className="text-sm text-gray-400">•</span>
-                                        <span className="text-sm text-gray-500">
-                                            Due: {new Date(assignment.endTime).toLocaleString()}
-                                        </span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                                <ClipboardX className="w-16 h-16 mb-4 text-gray-400" />
+                                <h3 className="text-lg font-medium mb-2">No Assignments Found</h3>
+                                <p className="text-center text-sm">
+                                    There are currently no assignments available for your courses.
+                                </p>
+                            </div>
+                        )}
                     </div>
                 );
+
 
             case "Submitted Assignments":
                 return (
@@ -288,34 +311,47 @@ const Dashboard = () => {
                             <FileText className="w-6 h-6 text-purple-600" />
                             <h2 className="text-xl font-semibold text-gray-800">Submitted Assignments</h2>
                         </div>
-                        {specificLoading ? (
-                            <div className="flex justify-center items-center">
+                        {submittedAssignmentsError ? (
+                            <div className="text-red-500 text-center py-8">
+                                {submittedAssignmentsError}
+                            </div>
+                        ) : specificLoading ? (
+                            <div className="flex justify-center items-center py-12">
                                 <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
                             </div>
-                        ) : dashboardData.submittedAssignments.assignments.length > 0 ? (
-                            dashboardData.submittedAssignments.assignments.map((assignment, index) => (
-                                <div
-                                    key={index}
-                                    onClick={() => handleTaskClickSubmitted(assignment)}
-                                    className="flex flex-col p-3 rounded-lg hover:bg-purple-50 cursor-pointer transition-colors group"
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <h3 className="font-medium text-gray-800 group-hover:text-purple-600 transition-colors">
-                                            {assignment.assignmentName}
-                                        </h3>
-                                        <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600 transition-colors" />
+                        ) : dashboardData.submittedAssignments?.assignments?.length > 0 ? (
+                            <div className="space-y-3">
+                                {dashboardData.submittedAssignments.assignments.map((assignment, index) => (
+                                    <div
+                                        key={index}
+                                        onClick={() => handleTaskClickSubmitted(assignment)}
+                                        className="flex flex-col p-3 rounded-lg hover:bg-purple-50 cursor-pointer transition-colors group"
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="font-medium text-gray-800 group-hover:text-purple-600 transition-colors">
+                                                {assignment.assignmentName}
+                                            </h3>
+                                            <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600 transition-colors" />
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-sm text-gray-500">{assignment.courseName}</span>
+                                            <span className="text-sm text-gray-400">•</span>
+                                            <span className="text-sm text-gray-500">
+                                                Submitted: {assignment.gradedTime.split("T")[0]}{" "}
+                                                {assignment.gradedTime.split("T")[1].slice(0, 5)}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <span className="text-sm text-gray-500">{assignment.courseName}</span>
-                                        <span className="text-sm text-gray-400">•</span>
-                                        <span className="text-sm text-gray-500">
-                                    Submitted: {new Date(assignment.gradedTime).toLocaleString()}
-                                </span>
-                                    </div>
-                                </div>
-                            ))
+                                ))}
+                            </div>
                         ) : (
-                            <p className="text-gray-500">No assignments submitted yet.</p>
+                            <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                                <ClipboardX className="w-16 h-16 mb-4 text-gray-400" />
+                                <h3 className="text-lg font-medium mb-2">No Submitted Assignments</h3>
+                                <p className="text-center text-sm">
+                                    You haven't submitted any assignments yet.
+                                </p>
+                            </div>
                         )}
                     </div>
                 );
@@ -338,6 +374,7 @@ const Dashboard = () => {
                         isSidebarOpen ? "w-64" : "w-20"
                     } bg-white transition-all duration-300 shadow-lg hidden md:block relative`}
                 >
+
                     <button
                         onClick={() => setSidebarOpen(!isSidebarOpen)}
                         className="absolute -right-3 top-9 bg-purple-600 rounded-full p-1.5 text-white hover:bg-purple-700 transition-colors"
@@ -370,7 +407,7 @@ const Dashboard = () => {
                     <div className="max-w-6xl mx-auto">
                         <h1 className="text-3xl font-bold text-gray-800 mb-8">
                             {activeItem}
-                        </h1>
+                        </h1><h2 className="p-4 text-2xl">Hello, {username}!</h2>
 
                         {renderContent()}
                     </div>
