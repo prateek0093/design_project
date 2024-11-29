@@ -46,7 +46,8 @@ func routes() http.Handler {
 			mux.With(RoleMiddleware("author")).Post("/addCourse", handlers.Repo.AddCourse)
 			mux.With(RoleMiddleware("author")).Get("/courseAssignments/{id}", handlers.Repo.AllAssignmentForCourse)
 			mux.With(RoleMiddleware("author")).Post("/addAssignment/{id}", handlers.Repo.AddAssignment)
-			mux.With(RoleMiddleware("author")).Get("/viewStudentSubmission/{assignmentId}", handlers.Repo.ShowAllAssignmentSubmission)
+			mux.With(RoleMiddleware("author")).Get("/viewStudentSubmission/{assignmentId}", handlers.Repo.ShowAllSubmittedAssignment)
+			mux.With(RoleMiddleware("author")).Post("/download/assignments-statistics", handlers.Repo.DownloadStats)
 		})
 		mux.Route("/student", func(mux chi.Router) {
 			mux.With(RoleMiddleware("student")).Get("/dashboard", handlers.Repo.StudentDashboard)
@@ -57,6 +58,7 @@ func routes() http.Handler {
 			mux.With(RoleMiddleware("student")).Post("/submitAssignment/{assignmentId}", handlers.Repo.SubmitAssignment)
 			mux.With(RoleMiddleware("student")).Get("/all-assignments", handlers.Repo.AllAssignmentOfStudent)
 			mux.With(RoleMiddleware("student")).Get("/submitted-assignments", handlers.Repo.SubmittedAssignmentForStudent)
+			mux.With(RoleMiddleware("student")).Post("/runCode/{questionID}", handlers.Repo.RunCode)
 		})
 	})
 

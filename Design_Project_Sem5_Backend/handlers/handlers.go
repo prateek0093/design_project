@@ -6,7 +6,10 @@ import (
 	"DesignProjectBackend/drivers"
 	helpers "DesignProjectBackend/helpers/judge0Funcs"
 	"DesignProjectBackend/models/RecievedData"
+	"DesignProjectBackend/models/SentData"
+	"bytes"
 	"crypto/rand"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,6 +23,8 @@ import (
 	"net/smtp"
 	"os"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 )
 
@@ -392,6 +397,7 @@ func (m *Repository) StudentDashboard(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("ac", allCourses)
 	fmt.Println("ra", recentAssignments)
 	response := map[string]interface{}{
+		"username":        username,
 		"success":         true,
 		"enrolledCourses": allCourses,
 		"recentTasks":     recentAssignments,
@@ -695,7 +701,7 @@ func (m *Repository) StudentSubmission(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println("cFile:", string(codeFileContent))
+	//fmt.Println("cFile:", string(codeFileContent))
 	testCasesFile, err := m.DB.GetTestCasesFromQuestionId(questionId)
 	if err != nil {
 		fmt.Println(err)
@@ -706,16 +712,21 @@ func (m *Repository) StudentSubmission(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 		return
 	}
+	reader := csv.NewReader(bytes.NewReader(testCasesFile))
+	testCases, err := reader.ReadAll()
 	//fmt.Println("testCasesFile:", string(testCasesFile))
-	totalTests := len(testCasesFile) - 1
+	totalTests := len(testCases) - 1
 	passedCasesCount, pass, errString := helpers.ValidateCodeAgainstTestCases(string(codeFileContent), testCasesFile, os.Getenv("JUDGE0_URL"))
 	err = m.DB.AddSubmission(username, questionId, codeFileContent)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println(totalTests)
+	//fmt.Println(totalTests)
+	//fmt.Println(passedCasesCount)
 	var temp float64
+	//fmt.Println(float64(passedCasesCount * maxMarks))
+	//fmt.Println(float64(totalTests))
 	temp = float64(passedCasesCount*maxMarks) / float64(totalTests)
 	marks := int(math.Round(temp)) // Round temp before converting to int
 	fmt.Println(temp, marks, maxMarks)
@@ -751,7 +762,7 @@ func (m *Repository) SendQuestionDetailsForEditor(w http.ResponseWriter, r *http
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
-	courseCode, assignmentId, err := m.DB.GetCourseCodeAndAssignmentIdFromQuestionId(questionId)
+	courseCode, assignmentId, firstTestCase, err := m.DB.GetCourseCodeAndAssignmentIdFromQuestionId(questionId)
 	if err != nil {
 		fmt.Println("Error getting course code and assignment id", err)
 		return
@@ -762,11 +773,13 @@ func (m *Repository) SendQuestionDetailsForEditor(w http.ResponseWriter, r *http
 		return
 	}
 	response := map[string]interface{}{
-		"success":      true,
-		"questionText": questionText,
-		"courseCode":   courseCode,
-		"assignmentId": assignmentId,
-		"status":       isAttempted,
+		"success":             true,
+		"questionText":        questionText,
+		"courseCode":          courseCode,
+		"assignmentId":        assignmentId,
+		"firstTestCaseInput":  firstTestCase[0],
+		"firstTestCaseOutput": firstTestCase[1],
+		"status":              isAttempted,
 	}
 	err = json.NewEncoder(w).Encode(response)
 	if err != nil {
@@ -798,7 +811,7 @@ func (m *Repository) SubmitAssignment(w http.ResponseWriter, r *http.Request) {
 	//w.Write([]byte("Assignment submitted successfully"))
 }
 
-func (m *Repository) ShowAllAssignmentSubmission(w http.ResponseWriter, r *http.Request) {
+func (m *Repository) ShowAllSubmittedAssignment(w http.ResponseWriter, r *http.Request) {
 	//username := chi.URLParam(r, "username")
 	assignmentId := chi.URLParam(r, "assignmentId")
 
@@ -813,6 +826,7 @@ func (m *Repository) ShowAllAssignmentSubmission(w http.ResponseWriter, r *http.
 		"success":    true,
 		"subDetails": subDetails,
 	}
+	//fmt.Println(subDetails)
 	err = json.NewEncoder(w).Encode(response)
 	if err != nil {
 		fmt.Println("Error encoding json", err)
@@ -922,6 +936,140 @@ func (m *Repository) SubmittedAssignmentForStudent(w http.ResponseWriter, r *htt
 	if err != nil {
 		fmt.Println("Error encoding json", err)
 		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+func (m *Repository) DownloadStats(w http.ResponseWriter, r *http.Request) {
+	var reqBody struct {
+		AssignmentIds []string `json:"assignmentIds"`
+	}
+
+	// Use io.LimitReader to prevent potential DOS attacks by limiting request body size
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1048576)).Decode(&reqBody); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Create a channel to collect submission data
+	submissionChan := make(chan []SentData.DataForDownload, len(reqBody.AssignmentIds))
+	errChan := make(chan error, len(reqBody.AssignmentIds))
+
+	// Use a wait group to manage concurrent goroutines
+	var wg sync.WaitGroup
+	wg.Add(len(reqBody.AssignmentIds))
+
+	// Concurrent fetch of submission details
+	for _, assignmentID := range reqBody.AssignmentIds {
+		go func(id string) {
+			defer wg.Done()
+			subData, err := m.DB.GetSubmissionDetailsForProfessorToDownload(id)
+			if err != nil {
+				errChan <- fmt.Errorf("error fetching submissions for assignment %s: %w", id, err)
+				return
+			}
+			submissionChan <- subData
+		}(assignmentID)
+	}
+
+	// Wait for all goroutines to complete
+	wg.Wait()
+	close(submissionChan)
+	close(errChan)
+
+	// Check for any errors
+	if len(errChan) > 0 {
+		var errMsgs []string
+		for err := range errChan {
+			errMsgs = append(errMsgs, err.Error())
+		}
+		fmt.Println(errMsgs)
+		http.Error(w, strings.Join(errMsgs, "; "), http.StatusInternalServerError)
+		return
+	}
+
+	// Collect all submission data
+	var allData []SentData.DataForDownload
+	for data := range submissionChan {
+		allData = append(allData, data...)
+	}
+
+	// Prepare CSV
+	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Disposition", `attachment; filename="submissions.csv"`)
+
+	writer := csv.NewWriter(w)
+	defer writer.Flush()
+
+	// Prepare CSV rows with header
+	csvRows := [][]string{
+		{"Assignment Name", "Roll Number", "Username", "Marks", "Submission Time"},
+	}
+
+	// Convert submission data to CSV rows
+	for _, s := range allData {
+		csvRows = append(csvRows, []string{
+			s.AssignmentName,
+			s.RollNumber,
+			s.Username,
+			strconv.Itoa(s.Marks),
+			s.SubmissionTime.UTC().Format("01/02/2006 15:04:05"), // check agar t ko replace kar sakte hai " "se
+		})
+	}
+	writer.UseCRLF = true
+	// Write all rows at once
+	if err := writer.WriteAll(csvRows); err != nil {
+		fmt.Println(err)
+		http.Error(w, "Failed to write CSV", http.StatusInternalServerError)
+	}
+}
+
+func (m *Repository) RunCode(w http.ResponseWriter, r *http.Request) {
+	if err := godotenv.Load(); err != nil {
+		fmt.Println("Error loading environment variables:", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	err := r.ParseMultipartForm(10 << 20)
+	if err != nil {
+		fmt.Println("Error in parsing multipart form:", err)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+	cfile, cfileExists := r.MultipartForm.File["codeFile"]
+	if !cfileExists || len(cfile) == 0 {
+		http.Error(w, fmt.Sprintf("Code file for question is missing"), http.StatusBadRequest)
+		return
+	}
+	codeFile, err := cfile[0].Open()
+	if err != nil {
+		http.Error(w, "Error opening code file", http.StatusInternalServerError)
+		fmt.Println(err)
+		return
+	}
+	codeFileContent, err := io.ReadAll(codeFile)
+	if err != nil {
+		http.Error(w, "Error reading code file", http.StatusInternalServerError)
+		fmt.Println(err)
+		return
+	}
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+	firstTestCaseInput := r.FormValue("firstTestCaseInput")
+	firstTestCaseOutput := r.FormValue("firstTestCaseOutput")
+	actualOutput, err1 := helpers.ExecuteCodeOnJudge0(client, string(codeFileContent), firstTestCaseInput, firstTestCaseOutput, os.Getenv("JUDGE0_URL"))
+	//fmt.Println(actualOutput)
+	errorFound := fmt.Sprintf("%v", err1)
+	response := map[string]interface{}{
+		"status":       true,
+		"err":          errorFound,
+		"actualOutput": actualOutput,
+	}
+	//fmt.Println(fmt.Errorf("%v", err1))
+	err2 := json.NewEncoder(w).Encode(response)
+	if err2 != nil {
+		fmt.Println("Error in encoding json")
 		return
 	}
 }

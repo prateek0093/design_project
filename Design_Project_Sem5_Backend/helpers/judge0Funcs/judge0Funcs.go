@@ -13,9 +13,10 @@ import (
 
 // SubmissionResult represents the Judge0 submission response
 type SubmissionResult struct {
-	Output string `json:"stdout"`
-	Error  string `json:"stderr"`
-	Status struct {
+	Output        string `json:"stdout"`
+	Error         string `json:"stderr"`
+	CompileOutput string `json:"compile_output"`
+	Status        struct {
 		ID          int    `json:"id"`
 		Description string `json:"description"`
 	} `json:"status"`
@@ -68,7 +69,7 @@ func ValidateCodeAgainstTestCases(code string, testCasesFile []byte, judge0URL s
 			defer func() { <-semaphore }()
 
 			// Execute test case
-			actualOutput, err := executeCodeOnJudge0(client, code, input, expectedOutput, judge0URL)
+			actualOutput, err := ExecuteCodeOnJudge0(client, code, input, expectedOutput, judge0URL)
 
 			passed := err == nil && strings.TrimSpace(actualOutput) == strings.TrimSpace(expectedOutput)
 
@@ -98,7 +99,10 @@ func ValidateCodeAgainstTestCases(code string, testCasesFile []byte, judge0URL s
 			passedTests++
 		} else {
 			var failureReason string
-			if result.Error != nil {
+			if strings.TrimSpace(result.ActualOutput) != strings.TrimSpace(result.ExpectedOutput) {
+				failureReason = fmt.Sprintf("Test case %d failed. Input: %s, Expected: %s, Got: %s with error: %v",
+					result.TestNumber, result.Input, result.ExpectedOutput, result.ActualOutput, result.Error)
+			} else if result.Error != nil {
 				failureReason = fmt.Sprintf("Test case %d failed. Input: %s, Expected: %s, Got: %s with error: %v",
 					result.TestNumber, result.Input, result.ExpectedOutput, result.ActualOutput, result.Error)
 			} else {
@@ -118,7 +122,7 @@ func ValidateCodeAgainstTestCases(code string, testCasesFile []byte, judge0URL s
 	return passedTests, passedTests == totalTests, summary
 }
 
-func executeCodeOnJudge0(client *http.Client, code, input, expectedOutput, judge0URL string) (string, error) {
+func ExecuteCodeOnJudge0(client *http.Client, code, input, expectedOutput, judge0URL string) (string, error) {
 	// Submit code
 	token, err := submitCode(client, code, input, expectedOutput, judge0URL)
 	if err != nil {
@@ -193,8 +197,10 @@ func waitForResult(client *http.Client, token, judge0URL string) (string, error)
 			continue
 		case 3: // Accepted
 			return result.Output, nil
+		case 4:
+			return result.Output, fmt.Errorf(result.Status.Description)
 		default:
-			return "", fmt.Errorf("execution failed: %v", result.Error)
+			return result.CompileOutput, fmt.Errorf("execution failed: %v", result.Status.Description)
 		}
 	}
 	return "", fmt.Errorf("timeout waiting for result after %d seconds", maxAttempts)

@@ -24,11 +24,12 @@ type DatabaseRepo interface {
 	GetTestCasesFromQuestionId(questionId string) ([]byte, error)
 	AddSubmission(username, questionId string, codeFile []byte) error
 	SubmitQuestion(marks int, username, questionId string) error
-	GetCourseCodeAndAssignmentIdFromQuestionId(questionId string) (string, string, error)
+	GetCourseCodeAndAssignmentIdFromQuestionId(questionId string) (string, string, []string, error)
 	SubmitAssignment(assignmentId string, username string) error
 	GetMarksFromQuestionId(questionId string) (int, error)
 	GetSubmissionDetailsForProfessor(assignmentId string) ([]SentData.SubmissionData, error)
 	GetQuestionAttemptedStatus(username, questionId string) (bool, error)
 	GetAllAssignmentsForStudents(username string) ([]SentData.AssignmentData, error)
 	GetAllSubmittedAssignmentsForStudents(username string) ([]SentData.SubmittedAssignmentData, error)
+	GetSubmissionDetailsForProfessorToDownload(assignmentId string) ([]SentData.DataForDownload, error)
 }

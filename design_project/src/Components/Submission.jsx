@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { ArrowUpDown, Loader2, ChevronDown } from "lucide-react";
+import { ArrowUpDown, Loader2, Eye } from "lucide-react";
 import Header from "./header";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 import { useCookies } from "react-cookie";
+import Modal from "./Modal.jsx";
 
 const Submission = () => {
   const [students, setStudents] = useState([]);
@@ -15,6 +16,7 @@ const Submission = () => {
     key: "rollNumber",
     direction: "asc",
   });
+  const [modalOpen, setModalOpen] = useState(false);
   const { assignmentId } = useParams();
 
   useEffect(() => {
@@ -30,9 +32,9 @@ const Submission = () => {
               withCredentials: true,
             }
         );
+
         if (response.data.success && response.data.subDetails) {
           setStudents(response.data.subDetails);
-          console.log(response.data.subDetails);
         } else {
           setError("No submission details available");
         }
@@ -64,10 +66,6 @@ const Submission = () => {
     return a[sortConfig.key] < b[sortConfig.key] ? 1 : -1;
   });
 
-  const handleStudentSelect = (student) => {
-    setSelectedStudent(student);
-  };
-
   return (
       <div className="min-h-screen bg-gradient-to-b from-purple-50 via-white to-blue-50">
         <Header />
@@ -78,98 +76,128 @@ const Submission = () => {
                 Student Submissions
               </h1>
               <p className="text-gray-600">
-                Click on a student to view their details
+                Hover over questions to view submitted code
               </p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Student List */}
-              <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-                <div className="bg-gray-50 px-6 py-4">
-                  <h2 className="text-lg font-semibold text-gray-700">
-                    Student List
-                  </h2>
-                </div>
-                <div className="overflow-y-auto max-h-[400px] divide-y divide-gray-200">
-                  {loading ? (
-                      <div className="px-6 py-16 text-center">
-                        <Loader2 className="animate-spin mx-auto" size={20} />
-                        <span className="block mt-2 text-gray-500">
-                      Loading students...
-                    </span>
-                      </div>
-                  ) : error ? (
-                      <div className="px-6 py-16 text-center text-red-500">
-                        {error}
-                      </div>
-                  ) : students.length === 0 ? (
-                      <div className="px-6 py-16 text-center text-gray-500">
-                        No student submissions available.
-                      </div>
-                  ) : (
-                      sortedStudents.map((student) => (
-                          <div
-                              key={student.rollNumber}
-                              className="px-6 py-4 cursor-pointer hover:bg-gray-50 transition-colors duration-150"
-                              onClick={() => handleStudentSelect(student)}
-                          >
-                            <div className="flex justify-between items-center">
-                              <div className="text-gray-800 font-medium">
-                                {student.username}
-                              </div>
-                              <ChevronDown size={20} className="text-gray-400" />
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              Roll Number: {student.rollNumber}
-                            </div>
-                          </div>
-                      ))
-                  )}
-                </div>
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <div className="bg-gray-50 px-6 py-4">
+                <h2 className="text-lg font-semibold text-gray-700">
+                  Student List
+                </h2>
               </div>
+              <div className="overflow-x-auto">
+                {loading ? (
+                    <div className="px-6 py-16 text-center">
+                      <Loader2 className="animate-spin mx-auto" size={20} />
+                      <span className="block mt-2 text-gray-500">
+                    Loading students...
+                  </span>
+                    </div>
+                ) : error ? (
+                    <div className="px-6 py-16 text-center text-red-500">
+                      {error}
+                    </div>
+                ) : students.length === 0 ? (
+                    <div className="px-6 py-16 text-center text-gray-500">
+                      No student submissions available.
+                    </div>
+                ) : (
+                    <table className="min-w-full table-auto">
+                      <thead>
+                      <tr className="bg-gray-100">
+                        <th
+                            className="px-6 py-3 text-left text-sm font-medium text-gray-500 cursor-pointer"
+                            onClick={() => handleSort("rollNumber")}
+                        >
+                          Roll Number
+                          <ArrowUpDown className="inline-block ml-2" />
+                        </th>
+                        <th
+                            className="px-6 py-3 text-left text-sm font-medium text-gray-500 cursor-pointer"
+                            onClick={() => handleSort("username")}
+                        >
+                          Student Name
+                          <ArrowUpDown className="inline-block ml-2" />
+                        </th>
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">
+                          Marks
+                        </th>
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">
+                          Questions Submitted
+                        </th>
+                      </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                      {sortedStudents.map((student) => (
+                          <tr
+                              key={student.rollNumber}
+                              className="hover:bg-gray-50"
+                          >
+                            <td className="px-6 py-4 text-sm text-gray-800">
+                              {student.rollNumber}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-800">
+                              {student.username}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-800">
+                              {student.marks}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-800 relative">
+                              {student.submittedData.length} Questions
+                              <div className="flex space-x-2 mt-2">
+                                {student.submittedData.map((data, idx) => (
+                                    <div
+                                        key={idx}
+                                        className="group relative"
+                                        onClick={() => {
+                                          setSelectedStudent({
+                                            title:data.questionText,
+                                            question: data.submittedQuestions,
+                                            index: idx,
+                                            roll: student.rollNumber,
+                                          });
+                                          setModalOpen(true);
+                                        }}
+                                    >
+                                <span className="cursor-pointer px-2 py-1 bg-gray-200 rounded hover:bg-blue-100">
+                                  Q{idx + 1}
+                                </span>
 
-              {/* Student Details */}
-              <div className="bg-white rounded-lg shadow-sm">
-                <div className="bg-gray-50 px-6 py-4">
-                  <h2 className="text-lg font-semibold text-gray-700">
-                    Student Details
-                  </h2>
-                </div>
-                <div className="px-6 py-4">
-                  {loading && !selectedStudent ? (
-                      <div className="text-center">
-                        <Loader2 className="animate-spin mx-auto" size={20} />
-                        <span className="block mt-2 text-gray-500">
-                      Loading details...
-                    </span>
-                      </div>
-                  ) : selectedStudent ? (
-                      <div>
-                        <h3 className="text-xl font-bold text-gray-800 mb-4">
-                          {selectedStudent.username}
-                        </h3>
-                        <p className="text-gray-700 mb-2">
-                          <span className="font-semibold">Roll Number:</span>{" "}
-                          {selectedStudent.rollNumber}
-                        </p>
-                        <p className="text-gray-700 mb-2">
-                          <span className="font-semibold">Marks:</span>{" "}
-                          {selectedStudent.marks}
-                        </p>
-                        <p className="text-gray-700">
-                          <span className="font-semibold">Submission Time:</span>{" "}
-                          {selectedStudent.submissionTime.split("T")[0]}{" "}
-                          {selectedStudent.submissionTime.split("T")[1].slice(0, 5)}
-                        </p>
-                      </div>
-                  ) : (
-                      <div className="text-center text-gray-500">
-                        Select a student to view details
-                      </div>
-                  )}
-                </div>
+                                    </div>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                      ))}
+                      </tbody>
+                    </table>
+                )}
               </div>
             </div>
+
+            <Modal
+                open={modalOpen}
+                onClose={() => setModalOpen(false)}
+                title={selectedStudent ? (
+                    <>
+                  {selectedStudent.title}
+                    </>
+                ) : (
+                    <p>No Data</p>
+                )}
+                content={
+                  selectedStudent ? (
+                      <>
+                  <pre className="bg-gray-100 p-4 rounded-md overflow-x-auto text-sm text-gray-700">
+                    {selectedStudent.question}
+                  </pre>
+                      </>
+                  ) : (
+                      <p>No Data</p>
+                  )
+                }
+            />
           </main>
         </div>
       </div>
