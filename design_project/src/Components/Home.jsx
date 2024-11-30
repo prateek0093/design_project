@@ -88,17 +88,17 @@ const CodeLab = () => {
         <nav>
           <ul className="flex space-x-6">
             <li>
-              <Link
-                to="/authorLogin"
-                className="text-gray-600 hover:text-purple-600"
+              <button
+                  onClick={() => navigate("/authorLogin")}
+                  className="bg-purple-500 text-white px-4 py-2 rounded-full hover:bg-purple-600 transition"
               >
                 Author
-              </Link>
+              </button>
             </li>
             <li>
               <button
-                onClick={() => navigate("/login")}
-                className="bg-purple-500 text-white px-4 py-2 rounded-full hover:bg-purple-600 transition"
+                  onClick={() => navigate("/login")}
+                  className="bg-purple-500 text-white px-4 py-2 rounded-full hover:bg-purple-600 transition"
               >
                 Student
               </button>
