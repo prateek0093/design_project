@@ -45,6 +45,7 @@ func NewHandler(r *Repository) {
 }
 
 type Claims struct {
+	Email    string `json:"email"`
 	Username string `json:"username"`
 	Role     string `json:"role"`
 	jwt.RegisteredClaims
@@ -87,7 +88,7 @@ func (m *Repository) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "User not verified", http.StatusUnauthorized)
 		return
 	}
-	role, err := m.DB.GetRoleFromUserName(username)
+	role, err := m.DB.GetRoleFromEmail(user.Email)
 	if err != nil {
 		fmt.Println("Error getting role from user:", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -99,6 +100,7 @@ func (m *Repository) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	claims := &Claims{
+		Email:    user.Email,
 		Username: username,
 		Role:     role,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -174,7 +176,7 @@ func (m *Repository) AuthorLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "User not verified", http.StatusUnauthorized)
 		return
 	}
-	role, err := m.DB.GetRoleFromUserName(username)
+	role, err := m.DB.GetRoleFromEmail(user.Email)
 	if err != nil {
 		fmt.Println("Error getting role:", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -187,6 +189,7 @@ func (m *Repository) AuthorLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	claims := &Claims{
+		Email:    user.Email,
 		Username: username,
 		Role:     role,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -371,10 +374,11 @@ func (m *Repository) Logout(w http.ResponseWriter, r *http.Request) {
 }
 func (m *Repository) StudentDashboard(w http.ResponseWriter, r *http.Request) {
 	username := r.Context().Value("username").(string)
-	fmt.Println(username)
+	email := r.Context().Value("email").(string)
+	fmt.Println(email)
 	role := r.Context().Value("role").(string)
 	fmt.Println(role)
-	allCourses, err := m.DB.GetAllCoursesForStudent(username)
+	allCourses, err := m.DB.GetAllCoursesForStudent(email)
 	if errors.Is(err, errors.New("no courses enrolled by student")) {
 		fmt.Println("No courses enrolled by student", err)
 		http.Error(w, "No courses enrolled by student", http.StatusExpectationFailed)
@@ -385,7 +389,7 @@ func (m *Repository) StudentDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	recentAssignments, err := m.DB.Get3RecentAssignments(username)
+	recentAssignments, err := m.DB.Get3RecentAssignments(email)
 	if errors.Is(err, errors.New("no tasks Assigned")) {
 		fmt.Println("No tasks Assigned", err)
 		http.Error(w, "No tasks Assigned", http.StatusExpectationFailed)
@@ -412,8 +416,9 @@ func (m *Repository) StudentDashboard(w http.ResponseWriter, r *http.Request) {
 
 func (m *Repository) AuthorDashBoard(w http.ResponseWriter, r *http.Request) {
 	name := r.Context().Value("username").(string)
+	email := r.Context().Value("email").(string)
 	fmt.Println(name)
-	allCourses, err := m.DB.GetAllCoursesForAuthor(name)
+	allCourses, err := m.DB.GetAllCoursesForAuthor(email)
 	if errors.Is(err, errors.New("no courses enrolled by author")) {
 		fmt.Println("No courses enrolled by author", err)
 		http.Error(w, "No courses enrolled by author", http.StatusExpectationFailed)
@@ -436,7 +441,7 @@ func (m *Repository) AuthorDashBoard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (m *Repository) AddCourse(w http.ResponseWriter, r *http.Request) {
-	username := r.Context().Value("username").(string)
+	email := r.Context().Value("email").(string)
 	type NewCourse struct {
 		CourseName string `json:"courseName"`
 		CourseCode string `json:"courseCode"`
@@ -452,7 +457,7 @@ func (m *Repository) AddCourse(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Println("Decoded course:", newCourse)
 
-	err = m.DB.AddCourse(username, newCourse.CourseCode, newCourse.CourseName, newCourse.BatchYear, newCourse.Branch)
+	err = m.DB.AddCourse(email, newCourse.CourseCode, newCourse.CourseName, newCourse.BatchYear, newCourse.Branch)
 	if err != nil {
 		http.Error(w, "Failed to add course", http.StatusInternalServerError)
 		fmt.Println("Error adding course", err)
@@ -471,10 +476,10 @@ func (m *Repository) AddCourse(w http.ResponseWriter, r *http.Request) {
 }
 
 func (m *Repository) AllAssignmentForCourse(w http.ResponseWriter, r *http.Request) {
-	username := r.Context().Value("username").(string)
+	email := r.Context().Value("email").(string)
 	courseCode := chi.URLParam(r, "id")
 	fmt.Println("CourseCode:", courseCode)
-	assignments, err := m.DB.GetAssignmentsForCourse(username, courseCode)
+	assignments, err := m.DB.GetAssignmentsForCourse(email, courseCode)
 	if errors.Is(err, errors.New("no assignments assigned")) {
 		fmt.Println(err)
 		http.Error(w, "no assignments assigned", http.StatusBadRequest)
@@ -647,10 +652,10 @@ func (m *Repository) AddAssignment(w http.ResponseWriter, r *http.Request) {
 func (m *Repository) AllQuestionsForAssignment(w http.ResponseWriter, r *http.Request) {
 	courseCode := chi.URLParam(r, "courseId")
 	assignmentId := chi.URLParam(r, "assignmentId")
-	username := r.Context().Value("username").(string)
+	email := r.Context().Value("email").(string)
 	fmt.Println("assignmentId:", assignmentId)
 	fmt.Println("courseCode:", courseCode)
-	questions, err := m.DB.GetAllQuestionsForAssignment(assignmentId, username)
+	questions, err := m.DB.GetAllQuestionsForAssignment(assignmentId, email)
 	if err != nil {
 		fmt.Println(err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -675,7 +680,7 @@ func (m *Repository) StudentSubmission(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-	username := r.Context().Value("username").(string)
+	email := r.Context().Value("email").(string)
 	//fmt.Println("I was here")
 	questionId := chi.URLParam(r, "questionId")
 	err := r.ParseMultipartForm(10 << 20)
@@ -717,7 +722,7 @@ func (m *Repository) StudentSubmission(w http.ResponseWriter, r *http.Request) {
 	//fmt.Println("testCasesFile:", string(testCasesFile))
 	totalTests := len(testCases) - 1
 	passedCasesCount, pass, errString := helpers.ValidateCodeAgainstTestCases(string(codeFileContent), testCasesFile, os.Getenv("JUDGE0_URL"))
-	err = m.DB.AddSubmission(username, questionId, codeFileContent)
+	err = m.DB.AddSubmission(email, questionId, codeFileContent)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -735,7 +740,7 @@ func (m *Repository) StudentSubmission(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Error in submitting question:", errString)
 		//marks = 0
 	}
-	err = m.DB.SubmitQuestion(marks, username, questionId)
+	err = m.DB.SubmitQuestion(marks, email, questionId)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -755,7 +760,7 @@ func (m *Repository) StudentSubmission(w http.ResponseWriter, r *http.Request) {
 func (m *Repository) SendQuestionDetailsForEditor(w http.ResponseWriter, r *http.Request) {
 	questionId := chi.URLParam(r, "questionId")
 	//fmt.Println(questionId)
-	username := r.Context().Value("username").(string)
+	email := r.Context().Value("email").(string)
 	questionText, err := m.DB.GetQuestionTextFromId(questionId)
 	if err != nil {
 		fmt.Println("Error getting question text", err)
@@ -767,7 +772,7 @@ func (m *Repository) SendQuestionDetailsForEditor(w http.ResponseWriter, r *http
 		fmt.Println("Error getting course code and assignment id", err)
 		return
 	}
-	isAttempted, err := m.DB.GetQuestionAttemptedStatus(username, questionId)
+	isAttempted, err := m.DB.GetQuestionAttemptedStatus(email, questionId)
 	if err != nil {
 		fmt.Println("Error getting question attempted status", err)
 		return
@@ -789,9 +794,9 @@ func (m *Repository) SendQuestionDetailsForEditor(w http.ResponseWriter, r *http
 }
 
 func (m *Repository) SubmitAssignment(w http.ResponseWriter, r *http.Request) {
-	username := r.Context().Value("username").(string)
+	email := r.Context().Value("email").(string)
 	assignmentId := chi.URLParam(r, "assignmentId")
-	err := m.DB.SubmitAssignment(assignmentId, username)
+	err := m.DB.SubmitAssignment(assignmentId, email)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -866,9 +871,9 @@ func (m *Repository) GetRole(w http.ResponseWriter, r *http.Request) {
 }
 
 func (m *Repository) AllAssignmentOfStudent(w http.ResponseWriter, r *http.Request) {
-	username := r.Context().Value("username").(string)
+	email := r.Context().Value("email").(string)
 
-	assignments, err := m.DB.GetAllAssignmentsForStudents(username)
+	assignments, err := m.DB.GetAllAssignmentsForStudents(email)
 	if errors.Is(err, errors.New("no tasks Assigned")) {
 		w.WriteHeader(http.StatusBadRequest)
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
@@ -894,8 +899,8 @@ func (m *Repository) AllAssignmentOfStudent(w http.ResponseWriter, r *http.Reque
 }
 
 func (m *Repository) SubmittedAssignmentForStudent(w http.ResponseWriter, r *http.Request) {
-	username := r.Context().Value("username").(string)
-	submittedAssignments, err := m.DB.GetAllSubmittedAssignmentsForStudents(username)
+	email := r.Context().Value("email").(string)
+	submittedAssignments, err := m.DB.GetAllSubmittedAssignmentsForStudents(email)
 	if errors.Is(err, errors.New("no submitted assignments")) {
 		w.WriteHeader(http.StatusBadRequest)
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
@@ -1000,21 +1005,66 @@ func (m *Repository) DownloadStats(w http.ResponseWriter, r *http.Request) {
 
 	writer := csv.NewWriter(w)
 	defer writer.Flush()
-
-	// Prepare CSV rows with header
-	csvRows := [][]string{
-		{"Assignment Name", "Roll Number", "Username", "Marks", "Submission Time"},
+	type assignmentGrades struct {
+		rollNumber     string
+		assignmentName string
+		marks          string
+		submissionTime string
+	}
+	studentGradesMap := make(map[string][]assignmentGrades)
+	assignmentNames := make(map[string]int)
+	for i := 0; i < len(allData); i++ {
+		_, ok := assignmentNames[allData[i].AssignmentName]
+		if !ok {
+			assignmentNames[allData[i].AssignmentName]++
+		}
+		studentGrades := assignmentGrades{
+			rollNumber:     allData[i].RollNumber,
+			assignmentName: allData[i].AssignmentName,
+			marks:          strconv.Itoa(allData[i].Marks),
+			submissionTime: allData[i].SubmissionTime.UTC().Format("01/02/2006 15:04:05"), // check agar t ko replace kar sakte hai " "se,
+		}
+		value, ok := studentGradesMap[allData[i].Username]
+		if !ok {
+			studentGradesMap[allData[i].Username] = []assignmentGrades{studentGrades}
+		} else {
+			studentGradesMap[allData[i].Username] = append(value, studentGrades)
+		}
 	}
 
+	// Prepare CSV rows with header
+	var csvRows [][]string
+	csvHeaders := []string{"Roll Number", "Username"}
+	for key, _ := range assignmentNames {
+		csvHeaders = append(csvHeaders, key+" grades", key+" submission time")
+	}
+	//fmt.Println(allData)
+	//fmt.Println(assignmentNames)
+	//fmt.Println(csvHeaders)
+	csvRows = append(csvRows, csvHeaders)
+
 	// Convert submission data to CSV rows
-	for _, s := range allData {
-		csvRows = append(csvRows, []string{
-			s.AssignmentName,
-			s.RollNumber,
-			s.Username,
-			strconv.Itoa(s.Marks),
-			s.SubmissionTime.UTC().Format("01/02/2006 15:04:05"), // check agar t ko replace kar sakte hai " "se
-		})
+	//for _, s := range allData {
+	//	csvRows = append(csvRows, []string{
+	//		s.AssignmentName,
+	//		s.RollNumber,
+	//		s.Username,
+	//		strconv.Itoa(s.Marks),
+	//		s.SubmissionTime.UTC().Format("01/02/2006 15:04:05"), // check agar t ko replace kar sakte hai " "se
+	//	})
+	//}
+	for key, val := range studentGradesMap {
+		var userGrades []string
+		userGrades = append(userGrades, val[0].rollNumber)
+		userGrades = append(userGrades, key)
+		for i := 0; i < len(val); i++ {
+			userGrades = append(userGrades, []string{
+				//val[i].assignmentName,
+				val[i].marks,
+				val[i].submissionTime,
+			}...)
+		}
+		csvRows = append(csvRows, userGrades)
 	}
 	writer.UseCRLF = true
 	// Write all rows at once

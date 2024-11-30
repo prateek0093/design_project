@@ -12,24 +12,24 @@ type DatabaseRepo interface {
 	MarkUserVerified(data RecievedData.OtpDetails) error
 	DeleteOTP(data RecievedData.OtpDetails) error
 	Login(email, password string) (string, bool, error)
-	GetAllCoursesForStudent(name string) ([]SentData.CourseData, error)
-	Get3RecentAssignments(name string) ([]SentData.AssignmentData, error)
-	GetRoleFromUserName(name string) (string, error)
-	GetAllCoursesForAuthor(name string) ([]SentData.CourseData, error)
-	AddCourse(username, courseCode, courseName, batchYear, branch string) error
-	GetAssignmentsForCourse(username, courseCode string) ([]SentData.AssignmentData, error)
+	GetAllCoursesForStudent(email string) ([]SentData.CourseData, error)
+	Get3RecentAssignments(email string) ([]SentData.AssignmentData, error)
+	GetRoleFromEmail(email string) (string, error)
+	GetAllCoursesForAuthor(email string) ([]SentData.CourseData, error)
+	AddCourse(email, courseCode, courseName, batchYear, branch string) error
+	GetAssignmentsForCourse(email, courseCode string) ([]SentData.AssignmentData, error)
 	AddAssignment(assignment RecievedData.Assignment) error
-	GetAllQuestionsForAssignment(assignmentId, username string) ([]SentData.StudentAssignmentDetails, error)
+	GetAllQuestionsForAssignment(assignmentId, email string) ([]SentData.StudentAssignmentDetails, error)
 	GetQuestionTextFromId(questionId string) (string, error)
 	GetTestCasesFromQuestionId(questionId string) ([]byte, error)
-	AddSubmission(username, questionId string, codeFile []byte) error
-	SubmitQuestion(marks int, username, questionId string) error
+	AddSubmission(email, questionId string, codeFile []byte) error
+	SubmitQuestion(marks int, email, questionId string) error
 	GetCourseCodeAndAssignmentIdFromQuestionId(questionId string) (string, string, []string, error)
-	SubmitAssignment(assignmentId string, username string) error
+	SubmitAssignment(assignmentId string, email string) error
 	GetMarksFromQuestionId(questionId string) (int, error)
 	GetSubmissionDetailsForProfessor(assignmentId string) ([]SentData.SubmissionData, error)
-	GetQuestionAttemptedStatus(username, questionId string) (bool, error)
-	GetAllAssignmentsForStudents(username string) ([]SentData.AssignmentData, error)
-	GetAllSubmittedAssignmentsForStudents(username string) ([]SentData.SubmittedAssignmentData, error)
+	GetQuestionAttemptedStatus(email, questionId string) (bool, error)
+	GetAllAssignmentsForStudents(email string) ([]SentData.AssignmentData, error)
+	GetAllSubmittedAssignmentsForStudents(email string) ([]SentData.SubmittedAssignmentData, error)
 	GetSubmissionDetailsForProfessorToDownload(assignmentId string) ([]SentData.DataForDownload, error)
 }
