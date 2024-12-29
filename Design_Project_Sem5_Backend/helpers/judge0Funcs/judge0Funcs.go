@@ -136,7 +136,7 @@ func ExecuteCodeOnJudge0(client *http.Client, code, input, expectedOutput, judge
 func submitCode(client *http.Client, code, input, expectedOutput, judge0URL string) (string, error) {
 	payload := map[string]interface{}{
 		"source_code":     code,
-		"language_id":     1,
+		"language_id":     50,
 		"stdin":           input,
 		"expected_output": expectedOutput,
 	}

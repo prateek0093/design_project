@@ -1,0 +1,130 @@
+x-logging:
+  &default-logging
+  logging:
+    driver: json-file
+    options:
+      max-size: 100M
+
+services:
+  local-db:
+    image: postgres:16.2
+    container_name: local-db
+    environment:
+      POSTGRES_DB: DesignProject
+      POSTGRES_USER: yash
+      POSTGRES_PASSWORD: 123
+      POSTGRES_PORT: 5433
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db-init:/docker-entrypoint-initdb.d
+    ports:
+      - "5433:5433"
+    networks:
+      - judge0-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yash -d DesignProject"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    <<: *default-logging
+    restart: always
+
+  db:
+    image: postgres:16.2
+    container_name: db
+    env_file: judge0.conf
+    volumes:
+      - data:/var/lib/postgresql/data/
+    <<: *default-logging
+    restart: always
+    networks:
+      - judge0-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U judge0"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7.2.4
+    container_name: judge0-redis
+    command: [ "bash", "-c",'docker-entrypoint.sh --appendonly no --requirepass "$$REDIS_PASSWORD"']
+    env_file: judge0.conf
+    <<: *default-logging
+    restart: always
+    networks:
+      - judge0-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "3e8qenXTNbMwJZhphuM7zaEvs2wwsfq8", "ping"]  # Replace with generated password
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  judge0-server:
+    image: judge0/judge0:1.13.1
+    container_name: judge0-server
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./judge0.conf:/judge0.conf:ro
+    ports:
+      - "2358:2358"
+    networks:
+      - judge0-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:2358/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  judge0-worker:
+    image: judge0/judge0:1.13.1
+    container_name: judge0-worker
+    command: [ "./scripts/workers" ]
+    volumes:
+      - ./judge0.conf:/judge0.conf:ro
+    privileged: true
+    <<: *default-logging
+    restart: always
+    networks:
+      - judge0-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: design_project
+    depends_on:
+      local-db:
+        condition: service_healthy
+      judge0-server:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      judge0-worker:
+        condition: service_started
+    environment:
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 8080
+      DB_HOST: local-db
+      DB_PORT: 5432
+      DB_NAME: DesignProject
+      DB_USER: yash
+      DB_PASSWORD: 123
+      JUDGE0_URL: http://judge0-server:2358
+    ports:
+      - "8080:8080"
+    networks:
+      - judge0-network
+
+networks:
+  judge0-network:
+
+volumes:
+  db_data:
+  data:

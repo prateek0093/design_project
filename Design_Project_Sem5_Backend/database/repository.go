@@ -32,4 +32,5 @@ type DatabaseRepo interface {
 	GetAllAssignmentsForStudents(email string) ([]SentData.AssignmentData, error)
 	GetAllSubmittedAssignmentsForStudents(email string) ([]SentData.SubmittedAssignmentData, error)
 	GetSubmissionDetailsForProfessorToDownload(assignmentId string) ([]SentData.DataForDownload, error)
+	CheckIfAssignmentIsSubmitted(assignmentId, email string) (bool, error)
 }

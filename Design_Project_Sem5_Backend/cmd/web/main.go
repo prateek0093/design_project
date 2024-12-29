@@ -5,15 +5,34 @@ import (
 	"DesignProjectBackend/handlers"
 	"database/sql"
 	"fmt"
+	"github.com/joho/godotenv"
 	"net/http"
+	"os"
 )
 
-const portnumber = "localhost:8080"
-
 func main() {
+	// Load environment variables
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("Warning: .env file not found, using defaults or environment variables")
+	}
+
+	// Get environment variables with fallbacks
+	dbHost := getEnv("DB_HOST", "localhost")
+	dbPort := getEnv("DB_PORT", "5432")
+	dbName := getEnv("DB_NAME", "DesignProject")
+	dbUser := getEnv("DB_USER", "yash")
+	dbPassword := getEnv("DB_PASSWORD", "123")
+	serverHost := getEnv("SERVER_HOST", "0.0.0.0")
+	serverPort := getEnv("SERVER_PORT", ":8080")
 
 	fmt.Println("Connecting to Database")
-	db, err := drivers.ConnectSQL("host=localhost port=5432 dbname=DesignProject user=yash password=123 connect_timeout=10")
+	connectionString := fmt.Sprintf(
+		"host=%s port=%s dbname=%s user=%s password=%s connect_timeout=10",
+		dbHost, dbPort, dbName, dbUser, dbPassword,
+	)
+
+	db, err := drivers.ConnectSQL(connectionString)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -25,6 +44,7 @@ func main() {
 			return
 		}
 	}(db.SQL)
+
 	err = db.SQL.Ping()
 	if err != nil {
 		fmt.Println("Error in Pinging database", err)
@@ -34,9 +54,12 @@ func main() {
 
 	Repo := handlers.NewRepo(db)
 	handlers.NewHandler(Repo)
-	fmt.Println("server started on port " + portnumber)
+
+	portNumber := fmt.Sprintf("%s:%s", serverHost, serverPort)
+	fmt.Printf("Server started on %s\n", portNumber)
+
 	srv := http.Server{
-		Addr:    portnumber,
+		Addr:    portNumber,
 		Handler: routes(),
 	}
 
@@ -45,4 +68,12 @@ func main() {
 		fmt.Println(err)
 		return
 	}
+}
+
+// Helper function to get environment variables with fallback
+func getEnv(key, fallback string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return fallback
 }

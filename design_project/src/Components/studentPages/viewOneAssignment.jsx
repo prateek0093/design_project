@@ -12,7 +12,7 @@ export default function AssignmentStudentPage() {
   const [questionData, setQuestionData] = useState([]);
   const [assignmentName, setAssignmentName] = useState("");
   const navigate = useNavigate();
-
+  const[submitted,setSubmitted]=useState(false);
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
@@ -32,6 +32,7 @@ export default function AssignmentStudentPage() {
         if (response.data.success) {
           const questions = response.data.questions || [];
           setQuestionData(questions);
+          setSubmitted(response.data.submitted);
           if (questions.length > 0) {
             setAssignmentName(questions[0].assignmentName || "Assignment");
           } else {
@@ -117,10 +118,13 @@ export default function AssignmentStudentPage() {
 
           <div className="mt-8 text-center">
             <button
-              className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-6 rounded-lg shadow-md transition-colors duration-200"
-              onClick={handleSubmitAssignment}
+                className={`bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-6 rounded-lg shadow-md transition-colors duration-200 ${
+                    submitted ? "bg-gray-400 cursor-not-allowed hover:bg-gray-400" : ""
+                }`}
+                onClick={handleSubmitAssignment}
+                disabled={submitted}
             >
-              Submit Assignment
+              {submitted ? "Assignment Submitted" : "Submit Assignment"}
             </button>
           </div>
         </div>
@@ -129,17 +133,17 @@ export default function AssignmentStudentPage() {
   );
 }
 
-const Accordion = ({ data, index }) => {
+const Accordion = ({data, index}) => {
   const navigate = useNavigate();
   const [isOpen, setOpen] = useState(false);
 
   return (
-    <div className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-all duration-200">
-      <div
-        className="p-6 cursor-pointer select-none"
-        onClick={() => setOpen(!isOpen)}
-      >
-        <div className="flex items-start justify-between">
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-all duration-200">
+        <div
+            className="p-6 cursor-pointer select-none"
+            onClick={() => setOpen(!isOpen)}
+        >
+          <div className="flex items-start justify-between">
           <div className="flex-1 pr-4">
             <p className="text-lg font-medium text-gray-900 leading-relaxed">
               Question {index + 1}

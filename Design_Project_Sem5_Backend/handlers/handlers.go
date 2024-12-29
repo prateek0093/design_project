@@ -661,10 +661,12 @@ func (m *Repository) AllQuestionsForAssignment(w http.ResponseWriter, r *http.Re
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
+	assignmentSubmitted, err := m.DB.CheckIfAssignmentIsSubmitted(assignmentId, email)
 	fmt.Println("questions:", questions)
 	response := map[string]interface{}{
 		"success":   true,
 		"questions": questions,
+		"submitted": assignmentSubmitted,
 	}
 	err = json.NewEncoder(w).Encode(response)
 	if err != nil {

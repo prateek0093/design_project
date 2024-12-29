@@ -7,7 +7,7 @@ import Header from "./header.jsx";
 
 const Dashboard = () => {
     const location = useLocation();
-    const { username } = location.state || {};
+    const [username,setUsername]  = useState(location.state);
     const [isSidebarOpen, setSidebarOpen] = useState(true);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -54,6 +54,7 @@ const Dashboard = () => {
                 enrolledCourses: data.enrolledCourses || [],
                 recentTasks: data.recentTasks || [],
             }));
+            setUsername(data.username);
             setLoading(false);
         } catch (error) {
             setError("Error fetching dashboard data");

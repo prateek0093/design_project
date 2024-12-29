@@ -472,10 +472,13 @@ func (m *PostgresRepo) AddAssignment(assignment RecievedData.Assignment) error {
 	defer cancel()
 	query := `INSERT INTO assignments (course_id, assignment_name, start_time, expiration_time, created_at)
 	VALUES ((SELECT course_id FROM courses WHERE course_code= $1),$2,$3,$4,CURRENT_TIMESTAMP)
+	RETURNING assignment_id
 	`
-	_, err = tx.ExecContext(ctx, query, assignment.CourseCode, assignment.AssignmentName, assignment.StartTime, assignment.EndTime)
+	var assignmentId string
+	row := tx.QueryRowContext(ctx, query, assignment.CourseCode, assignment.AssignmentName, assignment.StartTime, assignment.EndTime)
+	err = row.Scan(&assignmentId)
 	if err != nil {
-		fmt.Println("Error adding assignment:", err)
+		fmt.Println("Error adding assignment scanning assignmentId:", err)
 		err1 := tx.Rollback()
 		if err1 != nil {
 			fmt.Println("Error rolling back:", err1)
@@ -487,9 +490,9 @@ func (m *PostgresRepo) AddAssignment(assignment RecievedData.Assignment) error {
 	for i := 0; i < len(assignment.Questions); i++ {
 		question := assignment.Questions[i]
 		query := `INSERT INTO questions (assignment_id,question_text,max_score,testcases_file,correct_code_file)
-		VALUES ((SELECT assignment_id FROM assignments WHERE assignment_name= $1),$2,$3,$4,$5)
+		VALUES ($1,$2,$3,$4,$5)
 		`
-		_, err = tx.ExecContext(ctx, query, assignment.AssignmentName, question.QuestionText, question.MaxScore, question.TestCasesFile, question.CodeFile)
+		_, err = tx.ExecContext(ctx, query, assignmentId, question.QuestionText, question.MaxScore, question.TestCasesFile, question.CodeFile)
 		if err != nil {
 			fmt.Println("Error adding question:", err)
 			err1 := tx.Rollback()
@@ -616,7 +619,7 @@ func (m *PostgresRepo) SubmitQuestion(marks int, email, questionId string) error
 			(SELECT submission_id FROM submissions 
 			 WHERE question_id = $1 
 			 AND student_id = (SELECT user_id FROM users WHERE email = $2)),
--- 			(SELECT user_id FROM users WHERE email = $2),
+			(SELECT user_id FROM users WHERE email = $2),
 			$3, CURRENT_TIMESTAMP, $4
 		);
 	`
@@ -897,13 +900,11 @@ func (m *PostgresRepo) GetAllSubmittedAssignmentsForStudents(email string) ([]Se
 			s.total_score
 			FROM users as u
 			JOIN 
-				enrollments AS e ON u.user_id = e.student_id
-			JOIN 
-				courses AS c ON e.course_id = c.course_id
-			JOIN 
-				assignments AS a ON c.course_id = a.course_id
-			JOIN 
 				assignment_grades AS s ON u.user_id = s.student_id
+			JOIN 
+				assignments AS a ON s.assignment_id = a.assignment_id
+			JOIN 
+				courses AS c ON a.course_id = c.course_id
 			WHERE u.email = $1
 			`
 	rows, err := m.DB.QueryContext(ctx, query, email)
@@ -982,4 +983,21 @@ func (m *PostgresRepo) GetSubmissionDetailsForProfessorToDownload(assignmentId s
 		subData = append(subData, studentData)
 	}
 	return subData, nil
+}
+
+func (m *PostgresRepo) CheckIfAssignmentIsSubmitted(assignmentId, email string) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	query := `SELECT COUNT(1)
+             FROM assignment_grades
+             WHERE assignment_id = $1 AND student_id=(SELECT user_id from users where email = $2)
+             `
+	row := m.DB.QueryRowContext(ctx, query, assignmentId, email)
+	var submitted int
+	err := row.Scan(&submitted)
+	if err != nil {
+		fmt.Println("Error scanning row", err)
+		return false, err
+	}
+	return submitted == 1, nil
 }
