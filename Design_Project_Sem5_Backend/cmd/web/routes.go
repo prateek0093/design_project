@@ -13,7 +13,7 @@ import (
 func routes() http.Handler {
 	mux := chi.NewRouter()
 	mux.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5174", "http:localhost:8080"}, // Specify exact origins, no "*"
+		AllowedOrigins:   []string{"http://localhost:5174", "http://localhost:8080", "http://10.100.247.208:80", "http://design_project:80"}, // Specify exact origins, no "*"
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},
