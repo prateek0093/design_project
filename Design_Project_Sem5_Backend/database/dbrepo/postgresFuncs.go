@@ -182,7 +182,7 @@ func (m *PostgresRepo) Get3RecentAssignments(email string) ([]SentData.Assignmen
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	var data []SentData.AssignmentData
 	defer cancel()
-	query := `SELECT 
+	query := `SELECT DISTINCT 
 		c.course_code,
 		c.course_name,
 		a.assignment_name,
@@ -822,7 +822,7 @@ func (m *PostgresRepo) GetAllAssignmentsForStudents(email string) ([]SentData.As
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	var data []SentData.AssignmentData
 	defer cancel()
-	query := `SELECT 
+	query := `SELECT DISTINCT
 		c.course_code,
 		c.course_name,
 		a.assignment_name,
